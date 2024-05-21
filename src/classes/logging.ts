@@ -120,6 +120,13 @@ class Logging {
     }
   }
 
+  writeLog(transactionID: number, pageID: number, value: string) {
+    const prevLSN = this.checkpoint.nextLSN
+    this.checkpoint.nextLSN += 1
+    this.log.entries.push({ LSN: this.checkpoint.nextLSN, prevLSN, transactionID, type: 'Update', pageID })
+    this.write(pageID, value)
+  }
+
   read(pageID: number) {
     const page = this.buffer.pages.find((p) => p.pageID === pageID)
     if (page) {
@@ -127,16 +134,7 @@ class Logging {
     }
   }
 
-  log(operation: Operation) {
-    const LSN = this.checkpoint.nextLSN
-    this.checkpoint.nextLSN += 1
-    const prevLSN = this.log.entries.length > 0 ? this.log.entries[this.log.entries.length - 1].LSN : -1
-    const transactionID = operation.operation.transactionID
-    const type = operation.operation.type
-    const pageID = operation.operation.pageID
-    this.log.entries.push({ LSN, prevLSN, transactionID, type, pageID })
-  }
-
+  
   commit(transactionID: number) {
     const lastLSN = this.checkpoint.nextLSN
     this.checkpoint.nextLSN += 1

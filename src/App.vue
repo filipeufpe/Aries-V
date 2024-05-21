@@ -118,7 +118,7 @@ const executeOperation = () => {
           logging.value.operations.items[operationIndex - 1].operation.pageID,
           logging.value.operations.items[operationIndex - 1].operation.value
         )
-        logging.value.log(
+        logging.value.writeLog(
           logging.value.operations.items[operationIndex - 1].operation.transactionID,
           logging.value.operations.items[operationIndex - 1].operation.pageID,
           logging.value.operations.items[operationIndex - 1].operation.value)
