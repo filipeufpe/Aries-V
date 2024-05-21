@@ -110,8 +110,14 @@ class Logging {
   write(pageID: number, value: string) {
     const pageLSN = this.checkpoint.nextLSN
     this.checkpoint.nextLSN += 1
-    let newPage: BufferPage = { pageID, value, pageLSN }
-    console.log('newPage', newPage)
+    // caso a página já esteja no buffer, atualiza o valor
+    const page = this.buffer.pages.find((p) => p.pageID === pageID)
+    if (page) {
+      page.value = value
+      page.pageLSN = pageLSN
+    } else {
+      this.buffer.pages.push({ pageID, value, pageLSN })
+    }
   }
 
   read(pageID: number) {
@@ -119,6 +125,16 @@ class Logging {
     if (page) {
       return page.value
     }
+  }
+
+  log(operation: Operation) {
+    const LSN = this.checkpoint.nextLSN
+    this.checkpoint.nextLSN += 1
+    const prevLSN = this.log.entries.length > 0 ? this.log.entries[this.log.entries.length - 1].LSN : -1
+    const transactionID = operation.operation.transactionID
+    const type = operation.operation.type
+    const pageID = operation.operation.pageID
+    this.log.entries.push({ LSN, prevLSN, transactionID, type, pageID })
   }
 
   commit(transactionID: number) {
