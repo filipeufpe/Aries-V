@@ -94,34 +94,31 @@ class Logging {
   operations: Operations
 
   constructor() {
-    this.disk = { pages: [{ page: '', pageLSN: 0, value: '' }] }
-    this.log = {
-      entries: [
-        {
-          LSN: 0,
-          prevLSN: 0,
-          transactionID: 0,
-          type: 'Update',
-          pageID: 0
-        }
-      ]
-    }
-    this.buffer = { pages: [{ pageID: 0, value: '', pageLSN: 0 }] }
-    this.transactionTable = { items: [{ transactionID: 0, status: 'Consolidada', lastLSN: 0 }] }
-    this.dirtyPageTable = { items: [{ pageID: 0, recLSN: 0 }] }
+    this.disk = { pages: []}
+    this.log = { entries: [] }
+    this.buffer = { pages: [] }
+    this.transactionTable = { items: [] }
+    this.dirtyPageTable = { items: [] }
+    this.operations = { items: [] }
     this.checkpoint = {
       transactionTable: this.transactionTable,
       dirtyPageTable: this.dirtyPageTable,
       nextLSN: 0
     }
-    this.operations = { items: [] }
   }
 
   write(pageID: number, value: string) {
     const pageLSN = this.checkpoint.nextLSN
     this.checkpoint.nextLSN += 1
-    // this.operations.items.push({ type: 'Write', pageID, value })
-    this.buffer.pages.push({ pageID, value, pageLSN })
+    let newPage: BufferPage = { pageID, value, pageLSN }
+    console.log('newPage', newPage)
+  }
+
+  read(pageID: number) {
+    const page = this.buffer.pages.find((p) => p.pageID === pageID)
+    if (page) {
+      return page.value
+    }
   }
 
   commit(transactionID: number) {

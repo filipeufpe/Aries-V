@@ -1,6 +1,4 @@
 <script setup lang="ts">
-const name = 'loggin'
-
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import {
   faBackward,
@@ -113,20 +111,41 @@ const addOperation = logging.value.addOperation
 let operationIndex = 1
 const executeOperation = () => {
   if (operationIndex <= logging.value.operations.items.length) {
-    console.log(logging.value.operations.items.length)
+    switch (logging.value.operations.items[operationIndex - 1].operation.type) {
+      case 'Write':
+        logging.value.write(
+          //logging.value.operations.items[operationIndex - 1].operation.transactionID,
+          logging.value.operations.items[operationIndex - 1].operation.pageID,
+          logging.value.operations.items[operationIndex - 1].operation.value
+        )
+        break
+      case 'Read':
+        logging.value.read(
+          logging.value.operations.items[operationIndex - 1].operation.pageID
+        )
+        break
+      case 'Flush':
+        logging.value.flush(logging.value.operations.items[operationIndex - 1].operation.pageID)
+        break
+      case 'Commit':
+        logging.value.commit(
+          logging.value.operations.items[operationIndex - 1].operation.transactionID
+        )
+        break
+      case 'Checkpoint':
+        //logging.value.checkpoint()
+        break
+    }
     operationIndex++
-    console.log(operationIndex)
   }
 }
-
-onMounted(() => {})
 </script>
 
 <template>
   <div id="container" class="flex flex-row">
     <div id="Operations" class="basis-1/5 bg-slate-800h-screen">
       <div class="bg-slate-800 h-screen p-2">
-        <div class="bg-white bg-gray-700 rounded-lg shadow-lg p-2">
+        <div class="bg-gray-700 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">Operações</h2>
 
           <div class="flex items-center space-x-2 pb-3">
@@ -294,7 +313,7 @@ onMounted(() => {})
         </div>
       </div>
       <div id="DirtyTable" class="p-2">
-        <div class="bg-white bg-gray-600 rounded-lg shadow-lg p-2">
+        <div class="bg-gray-600 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">Dirty Page Table</h2>
           <table class="w-full">
             <thead>
@@ -313,7 +332,7 @@ onMounted(() => {})
         </div>
       </div>
       <div id="disk" class="p-2">
-        <div class="bg-white bg-gray-600 rounded-lg shadow-lg p-2">
+        <div class="bg-gray-600 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">Disco</h2>
           <table class="w-full">
             <thead>
@@ -336,7 +355,7 @@ onMounted(() => {})
     </div>
     <div id="Coluna2" class="basis-2/5 bg-slate-800h-screen">
       <div id="Log" class="bg-gray-700 h-screen p-2">
-        <div class="bg-white bg-gray-700 rounded-lg shadow-lg p-2 overflow-y-auto">
+        <div class="bg-gray-700 rounded-lg shadow-lg p-2 overflow-y-auto">
           <h2 class="text-xl font-bold mb-1 text-slate-50">Logs</h2>
           <table class="w-full">
             <thead>
@@ -358,9 +377,6 @@ onMounted(() => {})
               </tr>
             </tbody>
           </table>
-          <pre class="text-white">
-            {{ logging.operations.items }}
-          </pre>
         </div>
       </div>
     </div>
