@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const name = 'loggin'
+
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import {
   faBackward,
