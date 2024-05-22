@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import {
-  faBackward,
+  faCaretLeft,
   faForward,
   faFilePen,
   faDownload,
@@ -10,7 +10,7 @@ import {
   faUpload
 } from '@fortawesome/free-solid-svg-icons'
 import Logging from '@/classes/logging'
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 
 //variáveis do formulário
 const formWriteTransaction = ref('')
@@ -110,23 +110,24 @@ const logging = ref(new Logging())
 const addOperation = logging.value.addOperation
 let operationIndex = 1
 const executeOperation = () => {
+  console.log(operationIndex, logging.value.operations.items.length)
   if (operationIndex <= logging.value.operations.items.length) {
     switch (logging.value.operations.items[operationIndex - 1].operation.type) {
       case 'Write':
         logging.value.write(
           //logging.value.operations.items[operationIndex - 1].operation.transactionID,
           logging.value.operations.items[operationIndex - 1].operation.pageID,
-          logging.value.operations.items[operationIndex - 1].operation.value
+          logging.value.operations.items[operationIndex - 1].operation.value,
+          logging.value.operations.items[operationIndex - 1].operation.transactionID
         )
         logging.value.writeLog(
           logging.value.operations.items[operationIndex - 1].operation.transactionID,
           logging.value.operations.items[operationIndex - 1].operation.pageID,
-          logging.value.operations.items[operationIndex - 1].operation.value)
+          logging.value.operations.items[operationIndex - 1].operation.value
+        )
         break
       case 'Read':
-        logging.value.read(
-          logging.value.operations.items[operationIndex - 1].operation.pageID
-        )
+        logging.value.read(logging.value.operations.items[operationIndex - 1].operation.pageID)
         break
       case 'Flush':
         logging.value.flush(logging.value.operations.items[operationIndex - 1].operation.pageID)
@@ -137,7 +138,8 @@ const executeOperation = () => {
         )
         break
       case 'Checkpoint':
-        //logging.value.checkpoint()
+        console.log(operationIndex, logging.value.operations.items.length)
+        console.log('Checkpoint')
         break
     }
     operationIndex++
@@ -146,9 +148,9 @@ const executeOperation = () => {
 </script>
 
 <template>
-  <div id="container" class="flex flex-row">
-    <div id="Operations" class="basis-1/5 bg-slate-800h-screen">
-      <div class="bg-slate-800 h-screen p-2">
+  <div id="container" class="flex flex-row h-fit">
+    <div id="Operations" class="basis-1/5 bg-slate-800 h-full">
+      <div class="bg-slate-800 h-full p-2">
         <div class="bg-gray-700 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">Operações</h2>
 
@@ -235,22 +237,25 @@ const executeOperation = () => {
               :key="operation.orderID"
             >
               <span>
-                <span v-if="'transactionID' in operation.operation"
-                  >T_{{ operation.operation.transactionID }}</span
-                >
+                <span v-if="'transactionID' in operation.operation">
+                  T_{{ operation.operation.transactionID }}
+                </span>
                 {{ operation.operation.type }}
-                (<span v-if="'pageID' in operation.operation">{{
-                  operation.operation.pageID
-                }}</span>
-                <span v-if="'value' in operation.operation">,{{ operation.operation.value }}</span
-                >)
+                (
+                <span v-if="'pageID' in operation.operation">
+                  {{ operation.operation.pageID }}
+                </span>
+                <span v-if="'value' in operation.operation">
+                  , {{ operation.operation.value }}
+                </span>
+                )
+                <span v-if="operationIndex === operation.orderID">
+                  <FontAwesomeIcon :icon="faCaretLeft" />
+                </span>
               </span>
             </li>
           </ul>
           <div class="flex items-center space-x-2 py-5">
-            <button class="bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2">
-              <FontAwesomeIcon :icon="faBackward" />
-            </button>
             <button
               class="bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2"
               :class="{
@@ -270,7 +275,7 @@ const executeOperation = () => {
         </div>
       </div>
     </div>
-    <div id="Coluna1" class="basis-2/5 bg-slate-700 h-screen">
+    <div id="Coluna1" class="basis-2/5 bg-slate-800 h-full">
       <div id="Transacoes" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">Transações</h2>
@@ -303,7 +308,7 @@ const executeOperation = () => {
               <tr>
                 <th class="text-left bg-slate-800 p-2 text-slate-50">pageID</th>
                 <th class="text-left bg-slate-800 p-2 text-slate-50">value</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">pageLSNw</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">pageLSN</th>
               </tr>
             </thead>
             <tbody>
@@ -357,8 +362,8 @@ const executeOperation = () => {
         </div>
       </div>
     </div>
-    <div id="Coluna2" class="basis-2/5 bg-slate-800h-screen">
-      <div id="Log" class="bg-gray-700 h-screen p-2">
+    <div id="Coluna2" class="basis-2/5 bg-slate-800 h-full">
+      <div id="Log" class="bg-gray-700 h-full p-2">
         <div class="bg-gray-700 rounded-lg shadow-lg p-2 overflow-y-auto">
           <h2 class="text-xl font-bold mb-1 text-slate-50">Logs</h2>
           <table class="w-full">
@@ -381,6 +386,11 @@ const executeOperation = () => {
               </tr>
             </tbody>
           </table>
+          <div>
+            <pre>
+              {{ logging.operations.items }}
+            </pre>
+          </div>
         </div>
       </div>
     </div>
