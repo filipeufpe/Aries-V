@@ -244,7 +244,7 @@ onMounted(() => {
               </button>
             </div>
           </div>
-          <div class="p-2">
+          <div class="py-2">
             <ul class="mb-1 text-slate-200">
               <!-- List of elements -->
               <li
