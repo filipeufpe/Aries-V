@@ -32,7 +32,8 @@ jobs:
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: gh-pages
-          folder: dist
-          single-commit: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          timeout: 600 # ajuste o tempo limite conforme necessário
+          error_count: 10 # ajuste o número de tentativas de reinicialização após erros
+          reporting_interval: 30000 # ajuste o intervalo de relatório de erro conforme necessário
+          artifact_name: dist # ajuste o nome do artefato conforme necessário
