@@ -115,7 +115,9 @@ const formatedCheckpoint = computed((): Operation => {
 
 //instancia do objeto Aries e funções
 const logging = ref(new Logging())
-const addOperation = logging.value.addOperation
+const addOperation = (operation: Operation) => {
+  logging.value.addOperation(operation)
+}
 
 const executeOperation = () => {
   const opn = logging.value.getCurrentOperation()
@@ -421,7 +423,7 @@ onMounted(() => {
             </tbody>
           </table>
           <div>
-            <pre class="text-slate-200">{{ logging.checkpoint }}</pre>
+            <!-- <pre class="text-slate-200">{{ logging.checkpoint }}</pre> -->
           </div>
         </div>
       </div>

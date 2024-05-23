@@ -149,8 +149,8 @@ class Logging {
           orderID: 4,
           operation: {
             type: 'Read',
-            transactionID: 4,
-            pageID: 'D'
+            transactionID: 1,
+            pageID: 'A'
           }
         },
         {
@@ -163,15 +163,15 @@ class Logging {
           orderID: 6,
           operation: {
             type: 'Flush',
-            pageID: 'F'
+            pageID: 'A'
           }
         },
         {
           orderID: 7,
           operation: {
             type: 'Write',
-            transactionID: 7,
-            pageID: 'G',
+            transactionID: 2,
+            pageID: 'B',
             value: '7'
           }
         },
@@ -179,8 +179,8 @@ class Logging {
           orderID: 8,
           operation: {
             type: 'Write',
-            transactionID: 8,
-            pageID: 'H',
+            transactionID: 1,
+            pageID: 'A',
             value: '8'
           }
         },
@@ -188,8 +188,8 @@ class Logging {
           orderID: 9,
           operation: {
             type: 'Write',
-            transactionID: 9,
-            pageID: 'I',
+            transactionID: 3,
+            pageID: 'A',
             value: '9'
           }
         },
@@ -197,8 +197,8 @@ class Logging {
           orderID: 10,
           operation: {
             type: 'Write',
-            transactionID: 10,
-            pageID: 'J',
+            transactionID: 2,
+            pageID: 'C',
             value: '10'
           }
         }
@@ -318,6 +318,7 @@ class Logging {
   }
 
   addOperation(operation: Operation) {
+    console.log(this)
     if (this.operations.items.length === 0) {
       operation.orderID = 1
     } else {
