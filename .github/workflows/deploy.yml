@@ -29,11 +29,17 @@ jobs:
       - name: Build the application
         run: npm run build
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          timeout: 600 # ajuste o tempo limite conforme necessário
-          error_count: 10 # ajuste o número de tentativas de reinicialização após erros
-          reporting_interval: 30000 # ajuste o intervalo de relatório de erro conforme necessário
-          artifact_name: dist # ajuste o nome do artefato conforme necessário
+          timeout: 600
+          error_count: 10
+          reporting_interval: 30000
+          artifact_name: dist
