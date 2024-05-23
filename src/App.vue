@@ -122,32 +122,33 @@ const addOperation = (operation: Operation) => {
 const executeOperation = () => {
   const opn = logging.value.getCurrentOperation()
 
-  const wopn = opn as WriteOperation
-  const ropn = opn as ReadOperation
-  const fopn = opn as FlushOperation
-  const copn = opn as CommitOperation
+  logging.value.writeLog(opn)
+  // const wopn = opn as WriteOperation
+  // const ropn = opn as ReadOperation
+  // const fopn = opn as FlushOperation
+  // const copn = opn as CommitOperation
 
-  switch (opn.type) {
-    case 'Write':
-      logging.value.write(wopn.pageID, wopn.value, wopn.transactionID)
-      logging.value.writeLog(wopn.transactionID, wopn.pageID, wopn.value)
-      break
-    case 'Read':
-      logging.value.read(ropn.pageID)
-      break
-    case 'Flush':
-      logging.value.flush(fopn.pageID)
-      break
-    case 'Commit':
-      logging.value.commit(copn.transactionID)
-      break
-    case 'Checkpoint':
-      logging.value.setCheckpoint()
-      break
-    default:
-      console.log('Operação não encontrada')
-      break
-  }
+  // switch (opn.type) {
+  //   case 'Write':
+  //     logging.value.write(wopn.pageID, wopn.value, wopn.transactionID)
+  //     logging.value.writeLog(wopn)
+  //     break
+  //   case 'Read':
+  //     logging.value.read(ropn.pageID)
+  //     break
+  //   case 'Flush':
+  //     logging.value.flush(fopn.pageID)
+  //     break
+  //   case 'Commit':
+  //     logging.value.commit(copn.transactionID)
+  //     break
+  //   case 'Checkpoint':
+  //     logging.value.setCheckpoint()
+  //     break
+  //   default:
+  //     console.log('Operação não encontrada')
+  //     break
+  // }
 }
 
 onMounted(() => {
@@ -248,7 +249,7 @@ onMounted(() => {
             <ul class="mb-1 text-slate-200">
               <!-- List of elements -->
               <li
-                class="flex items-center space-x-2 border rounded mb-1 p-2"
+                class="flex items-center space-x-2 border rounded border-slate-600 mb-1 p-2"
                 v-for="(item, index) in logging.operations.items"
                 :key="item.orderID"
               >
