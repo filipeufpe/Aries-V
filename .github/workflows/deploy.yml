@@ -10,14 +10,17 @@ jobs:
 
     needs: []
 
+    permissions:
+      id-token: write
+
     env:
       NODE_VERSION: 20
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -28,7 +31,7 @@ jobs:
         run: npm run build
 
       - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v3
+        uses: actions/deploy-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: gh-pages
