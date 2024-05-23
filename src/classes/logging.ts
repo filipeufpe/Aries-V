@@ -1,5 +1,5 @@
 interface DiskPage {
-  page: string
+  pageID: string
   pageLSN: number | null
   value: string
 }
@@ -13,6 +13,8 @@ interface LogEntry {
   transactionID: number
   type: 'Update' | 'Commit' | 'End' | 'CLR' | 'Checkpoint'
   pageID: string
+  persisted?: boolean
+  value?: string
 }
 
 interface Log {
@@ -49,42 +51,56 @@ interface DirtyPageTable {
 }
 
 interface Checkpoint {
-  transactionTable: TransactionTable
-  dirtyPageTable: DirtyPageTable
+  transactionTable: TransactionTable | null
+  dirtyPageTable: DirtyPageTable | null
   nextLSN: number
 }
 
-interface WriteOperation {
-  type: string
+export interface WriteOperation {
+  type: 'Write'
   transactionID: number
   pageID: string
   value: string
 }
 
-interface FlushOperation {
-  type: string
+export interface FlushOperation {
+  type: 'Flush'
   pageID: string
 }
 
-interface CommitOperation {
-  type: string
+export interface CommitOperation {
+  type: 'Commit'
   transactionID: number
 }
 
-interface CheckpointOperation {
-  type: string
+export interface CheckpointOperation {
+  type: 'Checkpoint'
 }
 
-interface Operation {
-  orderID: number | never
-  operation: WriteOperation | FlushOperation | CommitOperation | CheckpointOperation
+export interface ReadOperation {
+  type: 'Read'
+  transactionID: number
+  pageID: string
+}
+
+type OperationTypes =
+  | WriteOperation
+  | FlushOperation
+  | CommitOperation
+  | CheckpointOperation
+  | ReadOperation
+
+export interface Operation {
+  orderID: number
+  operation: OperationTypes
 }
 
 interface Operations {
-  items: Operation[] | never
+  items: Operation[]
 }
 
 class Logging {
+  currentOperationIdx: number
   disk: Disk
   log: Log
   buffer: Buffer
@@ -94,6 +110,7 @@ class Logging {
   operations: Operations
 
   constructor() {
+    this.currentOperationIdx = 0
     this.disk = { pages: [] }
     this.log = { entries: [] }
     this.buffer = { pages: [] }
@@ -107,7 +124,7 @@ class Logging {
             type: 'Write',
             transactionID: 1,
             pageID: 'A',
-            value: 'One'
+            value: '1'
           }
         },
         {
@@ -116,127 +133,92 @@ class Logging {
             type: 'Write',
             transactionID: 2,
             pageID: 'B',
-            value: 'Two'
+            value: '2'
           }
         },
         {
           orderID: 3,
           operation: {
-            type: 'Flush',
-            pageID: 'B'
+            type: 'Write',
+            transactionID: 3,
+            pageID: 'C',
+            value: '3'
           }
         },
         {
           orderID: 4,
           operation: {
-            type: 'Write',
-            transactionID: 1,
-            pageID: 'A',
-            value: 'Three'
+            type: 'Read',
+            transactionID: 4,
+            pageID: 'D'
           }
         },
         {
           orderID: 5,
           operation: {
-            type: 'Flush',
-            pageID: 'A'
+            type: 'Checkpoint'
           }
         },
         {
           orderID: 6,
           operation: {
-            type: 'Commit',
-            transactionID: 1
+            type: 'Flush',
+            pageID: 'F'
           }
         },
         {
           orderID: 7,
           operation: {
             type: 'Write',
-            transactionID: 3,
-            pageID: 'C',
-            value: 'Four'
+            transactionID: 7,
+            pageID: 'G',
+            value: '7'
           }
         },
         {
           orderID: 8,
           operation: {
-            type: 'Flush',
-            pageID: 'C'
+            type: 'Write',
+            transactionID: 8,
+            pageID: 'H',
+            value: '8'
           }
         },
         {
           orderID: 9,
           operation: {
             type: 'Write',
-            transactionID: 2,
-            pageID: 'B',
-            value: 'Five'
+            transactionID: 9,
+            pageID: 'I',
+            value: '9'
           }
         },
         {
           orderID: 10,
           operation: {
-            type: 'Flush',
-            pageID: 'B'
-          }
-        },
-        {
-          orderID: 11,
-          operation: {
-            type: 'Commit',
-            transactionID: 2
-          }
-        },
-        {
-          orderID: 12,
-          operation: {
             type: 'Write',
-            transactionID: 3,
-            pageID: 'C',
-            value: 'Six'
-          }
-        },
-        {
-          orderID: 13,
-          operation: {
-            type: 'Flush',
-            pageID: 'C'
-          }
-        },
-        {
-          orderID: 14,
-          operation: {
-            type: 'Commit',
-            transactionID: 3
-          }
-        },
-        {
-          orderID: 15,
-          operation: {
-            type: 'Checkpoint'
+            transactionID: 10,
+            pageID: 'J',
+            value: '10'
           }
         }
       ]
     }
     this.checkpoint = {
-      transactionTable: this.transactionTable,
-      dirtyPageTable: this.dirtyPageTable,
+      transactionTable: null,
+      dirtyPageTable: null,
       nextLSN: 0
     }
   }
 
   write(pageID: string, value: string, transactionID: number) {
-    // pageLSN recebe o número da última entrada no log que referencia pageID
     const pageLSN =
       this.log.entries
         .filter((entry) => entry.pageID === pageID)
         .map((entry) => entry.LSN)
         .pop() || null
 
-    // caso a página já esteja no buffer, atualiza o valor
     const page = this.buffer.pages.find((p) => p.pageID === pageID)
-    // caso a transação exista em this.transactionTable, atualiza o lastLSN, caso contrário, insere
 
     const transaction = this.transactionTable.items.find((t) => t.transactionID === transactionID)
     if (transaction) {
@@ -245,9 +227,10 @@ class Logging {
       this.transactionTable.items.push({ transactionID, status: 'Ativa', lastLSN: pageLSN })
     }
 
-    // caso a página não esteja na tabela de páginas sujas, insere
     const dirtyPage = this.dirtyPageTable.items.find((p) => p.pageID === pageID)
-    if (!dirtyPage) {
+    if (dirtyPage) {
+      dirtyPage.recLSN = pageLSN
+    } else {
       this.dirtyPageTable.items.push({ pageID, recLSN: pageLSN })
     }
 
@@ -257,6 +240,7 @@ class Logging {
     } else {
       this.buffer.pages.push({ pageID, value, pageLSN })
     }
+    this.currentOperationIdx++
   }
 
   writeLog(transactionID: number, pageID: string, value: string) {
@@ -267,63 +251,87 @@ class Logging {
         .map((entry) => entry.LSN)
         .pop() || null
 
-    this.checkpoint.nextLSN += 1
+    if (this.checkpoint.nextLSN === null) {
+      this.checkpoint.nextLSN = 1
+    } else {
+      this.checkpoint.nextLSN += 1
+    }
     this.log.entries.push({
       LSN: this.log.entries.length + 1,
       prevLSN,
       transactionID,
       type: 'Update',
-      pageID
+      pageID,
+      value
     })
-    this.write(pageID, value, transactionID)
   }
 
   read(pageID: string) {
-    const page = this.buffer.pages.find((p) => p.pageID === pageID)
-    if (page) {
-      return page.value
-    }
+    this.currentOperationIdx++
+    this.disk.pages.forEach((p, idx) => {
+      if (p.pageID === pageID) {
+        this.buffer.pages[idx] = p
+        return
+      }
+    })
   }
 
   commit(transactionID: number) {
-    const lastLSN = this.checkpoint.nextLSN
-    this.checkpoint.nextLSN += 1
-    // this.operations.items.push({ type: 'Commit', pageID: transactionID, value: '' })
-    this.transactionTable.items.push({ transactionID, status: 'Consolidada', lastLSN })
+    if (this.checkpoint.nextLSN === null) {
+      this.setCheckpoint()
+      this.checkpoint.nextLSN = 1
+    } else {
+      this.checkpoint.nextLSN += 1
+      this.currentOperationIdx++
+    }
+    // remova a transação da transactionTable
+    this.transactionTable.items = this.transactionTable.items.filter(
+      (t) => t.transactionID !== transactionID
+    )
   }
 
   flush(pageID: string) {
+    this.currentOperationIdx++
     const page = this.buffer.pages.find((p) => p.pageID === pageID)
     if (page) {
-      const recLSN = this.checkpoint.nextLSN
-      this.checkpoint.nextLSN += 1
-      this.log.entries.push({
-        LSN: this.log.entries.length + 1,
-        prevLSN: page.pageLSN,
-        transactionID: 0,
-        type: 'CLR',
-        pageID
+      if (this.checkpoint.nextLSN === null) {
+        this.checkpoint.nextLSN = 1
+      } else {
+        this.checkpoint.nextLSN += 1
+      }
+      // marca o campo persisted de todas as entradas do log como true
+      this.log.entries.forEach((entry) => {
+        entry.persisted = true
       })
-      this.disk.pages.push({ page: page.pageID, pageLSN: page.pageLSN, value: page.value })
+      this.disk.pages.push(page)
+      this.dirtyPageTable.items = this.dirtyPageTable.items.filter((p) => p.pageID !== pageID)
+      this.buffer.pages = this.buffer.pages.filter((p) => p.pageID !== pageID)
       //this.dirtyPageTable.items.push({ pageID, recLSN })
     }
   }
 
   setCheckpoint() {
-    this.checkpoint.nextLSN += 1
-    // this.operations.items.push({ type: 'Checkpoint', pageID: 0, value: '' })
-    this.checkpoint.transactionTable = this.transactionTable
-    this.checkpoint.dirtyPageTable = this.dirtyPageTable
+    this.currentOperationIdx++
+    this.checkpoint.nextLSN++
+    this.checkpoint.transactionTable = this.clone(this.transactionTable)
+    this.checkpoint.dirtyPageTable = this.clone(this.dirtyPageTable)
   }
 
-  addOperation(operation: Operation, operations: Operations) {
-    if (operations.items.length === 0) {
+  addOperation(operation: Operation) {
+    if (this.operations.items.length === 0) {
       operation.orderID = 1
     } else {
-      operation.orderID = operations.items[operations.items.length - 1].orderID + 1
+      operation.orderID = this.operations.items[this.operations.items.length - 1].orderID + 1
     }
-    operations.items.push(operation)
+    this.operations.items.push(operation)
+  }
+
+  clone(obj: any) {
+    return JSON.parse(JSON.stringify(obj))
+  }
+
+  getCurrentOperation(): OperationTypes {
+    return this.operations.items[this.currentOperationIdx].operation
   }
 }
-
 export default Logging

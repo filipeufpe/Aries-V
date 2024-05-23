@@ -7,10 +7,18 @@ import {
   faDownload,
   faCheckDouble,
   faFlag,
-  faUpload
+  faUpload,
+  faHardDrive
 } from '@fortawesome/free-solid-svg-icons'
+import type {
+  CommitOperation,
+  FlushOperation,
+  Operation,
+  ReadOperation,
+  WriteOperation
+} from '@/classes/logging'
 import Logging from '@/classes/logging'
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 
 //variáveis do formulário
 const formWriteTransaction = ref('')
@@ -53,7 +61,7 @@ const commitButtonDisabled = computed(() => {
 })
 
 //propriedades computadas
-const formatedTransaction = computed(() => {
+const formatedTransaction = computed((): Operation => {
   return {
     orderID: logging.value.operations.items.length + 1,
     operation: {
@@ -65,7 +73,7 @@ const formatedTransaction = computed(() => {
   }
 })
 
-const formatedFlushPage = computed(() => {
+const formatedFlushPage = computed((): Operation => {
   return {
     orderID: logging.value.operations.items.length + 1,
     operation: {
@@ -75,7 +83,7 @@ const formatedFlushPage = computed(() => {
   }
 })
 
-const formatedReadTransaction = computed(() => {
+const formatedReadTransaction = computed((): Operation => {
   return {
     orderID: logging.value.operations.items.length + 1,
     operation: {
@@ -86,7 +94,7 @@ const formatedReadTransaction = computed(() => {
   }
 })
 
-const formatedCommitTransaction = computed(() => {
+const formatedCommitTransaction = computed((): Operation => {
   return {
     orderID: logging.value.operations.items.length + 1,
     operation: {
@@ -96,7 +104,7 @@ const formatedCommitTransaction = computed(() => {
   }
 })
 
-const formatedCheckpoint = computed(() => {
+const formatedCheckpoint = computed((): Operation => {
   return {
     orderID: logging.value.operations.items.length + 1,
     operation: {
@@ -108,164 +116,169 @@ const formatedCheckpoint = computed(() => {
 //instancia do objeto Aries e funções
 const logging = ref(new Logging())
 const addOperation = logging.value.addOperation
-let operationIndex = 1
+
 const executeOperation = () => {
-  console.log(operationIndex, logging.value.operations.items.length)
-  if (operationIndex <= logging.value.operations.items.length) {
-    switch (logging.value.operations.items[operationIndex - 1].operation.type) {
-      case 'Write':
-        logging.value.write(
-          //logging.value.operations.items[operationIndex - 1].operation.transactionID,
-          logging.value.operations.items[operationIndex - 1].operation.pageID,
-          logging.value.operations.items[operationIndex - 1].operation.value,
-          logging.value.operations.items[operationIndex - 1].operation.transactionID
-        )
-        logging.value.writeLog(
-          logging.value.operations.items[operationIndex - 1].operation.transactionID,
-          logging.value.operations.items[operationIndex - 1].operation.pageID,
-          logging.value.operations.items[operationIndex - 1].operation.value
-        )
-        break
-      case 'Read':
-        logging.value.read(logging.value.operations.items[operationIndex - 1].operation.pageID)
-        break
-      case 'Flush':
-        logging.value.flush(logging.value.operations.items[operationIndex - 1].operation.pageID)
-        break
-      case 'Commit':
-        logging.value.commit(
-          logging.value.operations.items[operationIndex - 1].operation.transactionID
-        )
-        break
-      case 'Checkpoint':
-        console.log(operationIndex, logging.value.operations.items.length)
-        console.log('Checkpoint')
-        break
-    }
-    operationIndex++
+  const opn = logging.value.getCurrentOperation()
+
+  const wopn = opn as WriteOperation
+  const ropn = opn as ReadOperation
+  const fopn = opn as FlushOperation
+  const copn = opn as CommitOperation
+
+  switch (opn.type) {
+    case 'Write':
+      logging.value.write(wopn.pageID, wopn.value, wopn.transactionID)
+      logging.value.writeLog(wopn.transactionID, wopn.pageID, wopn.value)
+      break
+    case 'Read':
+      logging.value.read(ropn.pageID)
+      break
+    case 'Flush':
+      logging.value.flush(fopn.pageID)
+      break
+    case 'Commit':
+      logging.value.commit(copn.transactionID)
+      break
+    case 'Checkpoint':
+      logging.value.setCheckpoint()
+      break
+    default:
+      console.log('Operação não encontrada')
+      break
   }
 }
+
+onMounted(() => {
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowRight') {
+      if (logging.value.currentOperationIdx < logging.value.operations.items.length) {
+        executeOperation()
+      }
+    }
+  })
+})
 </script>
 
 <template>
-  <div id="container" class="flex flex-row h-fit">
+  <div id="container" class="flex flex-row h-fit" @keyup.right="executeOperation()">
     <div id="Operations" class="basis-1/5 bg-slate-800 h-full">
       <div class="bg-slate-800 h-full p-2">
         <div class="bg-gray-700 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">Operações</h2>
-
-          <div class="flex items-center space-x-2 pb-3">
-            <input
-              v-model="formWriteTransaction"
-              type="text"
-              class="border border-gray-300 rounded-lg px-4 py-2"
-              placeholder="WRITE T P V"
-            />
-            <button
-              class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-              :class="{ 'opacity-50 cursor-not-allowed': writeButtonDisabled }"
-              :disabled="writeButtonDisabled"
-              @click="addOperation(formatedTransaction, logging.operations)"
-            >
-              <FontAwesomeIcon :icon="faFilePen" />
-            </button>
-          </div>
-          <div class="flex items-center space-x-2 pb-3">
-            <input
-              v-model="formReadTransaction"
-              type="text"
-              class="border border-gray-300 rounded-lg px-4 py-2"
-              placeholder="READ T P"
-            />
-            <button
-              class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-              :class="{ 'opacity-50 cursor-not-allowed': readButtonDisabled }"
-              :disabled="readButtonDisabled"
-              @click="addOperation(formatedReadTransaction, logging.operations)"
-            >
-              <FontAwesomeIcon :icon="faUpload" />
-            </button>
-          </div>
-          <div class="flex items-center space-x-2 pb-2">
-            <input
-              v-model="formFlushPage"
-              type="text"
-              class="border border-gray-300 rounded-lg px-4 py-2"
-              placeholder="Flush P"
-            />
-            <button
-              class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-              :class="{ 'opacity-50 cursor-not-allowed': flushButtonDisabled }"
-              :disabled="flushButtonDisabled"
-              @click="addOperation(formatedFlushPage, logging.operations)"
-            >
-              <FontAwesomeIcon :icon="faDownload" />
-            </button>
-          </div>
-          <div class="flex items-center space-x-2 pb-2">
-            <input
-              v-model="formCommitTransaction"
-              type="text"
-              class="border border-gray-300 rounded-lg px-4 py-2"
-              placeholder="Commit T"
-            />
-            <button
-              class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-              :class="{ 'opacity-50 cursor-not-allowed': commitButtonDisabled }"
-              :disabled="commitButtonDisabled"
-              @click="addOperation(formatedCommitTransaction, logging.operations)"
-            >
-              <FontAwesomeIcon :icon="faCheckDouble" />
-            </button>
-          </div>
-          <div class="flex items-center space-x-2 pr-1">
-            <div class="border border-gray-300 rounded-lg px-4 py-2 bg-white w-full pr-4">
-              <span>Checkpoint</span>
+          <div>
+            <div class="flex items-center space-x-2 pb-2">
+              <input
+                v-model="formWriteTransaction"
+                type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2"
+                placeholder="WRITE T P V"
+              />
+              <button
+                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': writeButtonDisabled }"
+                :disabled="writeButtonDisabled"
+                @click="addOperation(formatedTransaction)"
+              >
+                <FontAwesomeIcon :icon="faFilePen" />
+              </button>
             </div>
-            <button
-              class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-              @click="addOperation(formatedCheckpoint, logging.operations)"
-            >
-              <FontAwesomeIcon :icon="faFlag" />
-            </button>
+            <div class="flex items-center space-x-2 pb-2">
+              <input
+                v-model="formReadTransaction"
+                type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2"
+                placeholder="READ T P"
+              />
+              <button
+                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': readButtonDisabled }"
+                :disabled="readButtonDisabled"
+                @click="addOperation(formatedReadTransaction)"
+              >
+                <FontAwesomeIcon :icon="faUpload" />
+              </button>
+            </div>
+            <div class="flex items-center space-x-2 pb-2">
+              <input
+                v-model="formFlushPage"
+                type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2"
+                placeholder="Flush P"
+              />
+              <button
+                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': flushButtonDisabled }"
+                :disabled="flushButtonDisabled"
+                @click="addOperation(formatedFlushPage)"
+              >
+                <FontAwesomeIcon :icon="faDownload" />
+              </button>
+            </div>
+            <div class="flex items-center space-x-2 pb-2">
+              <input
+                v-model="formCommitTransaction"
+                type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2"
+                placeholder="Commit T"
+              />
+              <button
+                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': commitButtonDisabled }"
+                :disabled="commitButtonDisabled"
+                @click="addOperation(formatedCommitTransaction)"
+              >
+                <FontAwesomeIcon :icon="faCheckDouble" />
+              </button>
+            </div>
+            <div class="flex items-center space-x-2 pr-1">
+              <div class="border border-gray-300 rounded-lg px-4 py-2 bg-white w-full pr-4">
+                <span>Checkpoint</span>
+              </div>
+              <button
+                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                @click="addOperation(formatedCheckpoint)"
+              >
+                <FontAwesomeIcon :icon="faFlag" />
+              </button>
+            </div>
           </div>
-          <ul class="mb-1 text-slate-200">
-            <!-- List of elements -->
-            <li
-              class="flex items-center space-x-2"
-              v-for="operation in logging.operations.items"
-              :key="operation.orderID"
-            >
-              <span>
-                <span v-if="'transactionID' in operation.operation">
-                  T_{{ operation.operation.transactionID }}
-                </span>
-                {{ operation.operation.type }}
-                (
-                <span v-if="'pageID' in operation.operation">
-                  {{ operation.operation.pageID }}
-                </span>
-                <span v-if="'value' in operation.operation">
-                  , {{ operation.operation.value }}
-                </span>
-                )
-                <span v-if="operationIndex === operation.orderID">
-                  <FontAwesomeIcon :icon="faCaretLeft" />
-                </span>
-              </span>
-            </li>
-          </ul>
+          <div class="p-2">
+            <ul class="mb-1 text-slate-200">
+              <!-- List of elements -->
+              <li
+                class="flex items-center space-x-2 border rounded mb-1 p-2"
+                v-for="(item, index) in logging.operations.items"
+                :key="item.orderID"
+              >
+                <div>
+                  <span v-if="'transactionID' in item.operation">
+                    T_{{ item.operation.transactionID }}
+                  </span>
+                  {{ item.operation.type }}
+                  (
+                  <span v-if="'pageID' in item.operation">
+                    {{ item.operation.pageID }}
+                  </span>
+                  <span v-if="'value' in item.operation"> , {{ item.operation.value }} </span>
+                  )
+                  <span v-if="logging.currentOperationIdx === index">
+                    <FontAwesomeIcon :icon="faCaretLeft" />
+                  </span>
+                </div>
+              </li>
+            </ul>
+          </div>
           <div class="flex items-center space-x-2 py-5">
             <button
               class="bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2"
               :class="{
                 'opacity-50 cursor-not-allowed':
                   logging.operations.items.length === 0 ||
-                  operationIndex > logging.operations.items.length
+                  logging.currentOperationIdx >= logging.operations.items.length
               }"
               :disabled="
                 logging.operations.items.length === 0 ||
-                operationIndex > logging.operations.items.length
+                logging.currentOperationIdx >= logging.operations.items.length
               "
               @click="executeOperation()"
             >
@@ -291,10 +304,11 @@ const executeOperation = () => {
               <tr
                 v-for="transaction in logging.transactionTable.items"
                 :key="transaction.transactionID"
+                class="bg-slate-50"
               >
-                <td class="p-2 bg-slate-50 text_slate_800">{{ transaction.transactionID }}</td>
-                <td class="p-2 bg-slate-50 text_slate_800">{{ transaction.status }}</td>
-                <td class="p-2 bg-slate-50 text_slate_800">{{ transaction.lastLSN }}</td>
+                <td class="p-2 text_slate_800">{{ transaction.transactionID }}</td>
+                <td class="p-2 text_slate_800">{{ transaction.status }}</td>
+                <td class="p-2 text_slate_800">{{ transaction.lastLSN }}</td>
               </tr>
             </tbody>
           </table>
@@ -352,8 +366,8 @@ const executeOperation = () => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="page in logging.disk.pages" :key="page.page">
-                <td class="p-2 bg-slate-50 text_slate_800">{{ page.page }}</td>
+              <tr v-for="page in logging.disk.pages" :key="page.pageID">
+                <td class="p-2 bg-slate-50 text_slate_800">{{ page.pageID }}</td>
                 <td class="p-2 bg-slate-50 text_slate_800">{{ page.value }}</td>
                 <td class="p-2 bg-slate-50 text_slate_800">{{ page.pageLSN }}</td>
               </tr>
@@ -369,27 +383,45 @@ const executeOperation = () => {
           <table class="w-full">
             <thead>
               <tr>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">
+                  <FontAwesomeIcon :icon="faHardDrive" />
+                </th>
                 <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
                 <th class="text-left bg-slate-800 p-2 text-slate-50">prevLSN</th>
                 <th class="text-left bg-slate-800 p-2 text-slate-50">transactionID</th>
                 <th class="text-left bg-slate-800 p-2 text-slate-50">type</th>
                 <th class="text-left bg-slate-800 p-2 text-slate-50">pageID</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">value</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="entry in logging.log.entries" :key="entry.LSN">
-                <td class="p-2 bg-slate-50 text_slate_800">{{ entry.LSN }}</td>
-                <td class="p-2 bg-slate-50 text_slate_800">{{ entry.prevLSN }}</td>
-                <td class="p-2 bg-slate-50 text_slate_800">{{ entry.transactionID }}</td>
-                <td class="p-2 bg-slate-50 text_slate_800">{{ entry.type }}</td>
-                <td class="p-2 bg-slate-50 text_slate_800">{{ entry.pageID }}</td>
+              <tr v-for="entry in logging.log.entries" :key="entry.LSN" class="bg-slate-50">
+                <td class="p-2 text_slate_800">
+                  <FontAwesomeIcon :icon="faHardDrive" v-if="entry.persisted" />
+                </td>
+                <td class="p-2 text_slate_800">
+                  {{ entry.LSN }}
+                </td>
+                <td class="p-2 text_slate_800">
+                  {{ entry.prevLSN }}
+                </td>
+                <td class="p-2 text_slate_800">
+                  {{ entry.transactionID }}
+                </td>
+                <td class="p-2 text_slate_800">
+                  {{ entry.type }}
+                </td>
+                <td class="p-2 text_slate_800">
+                  {{ entry.pageID }}
+                </td>
+                <td class="p-2 text_slate_800">
+                  {{ entry.value }}
+                </td>
               </tr>
             </tbody>
           </table>
           <div>
-            <pre>
-              {{ logging.operations.items }}
-            </pre>
+            <pre class="text-slate-200">{{ logging.checkpoint }}</pre>
           </div>
         </div>
       </div>
