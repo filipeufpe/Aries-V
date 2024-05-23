@@ -8,8 +8,6 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
-    needs: []
-
     permissions:
       id-token: write
 
@@ -17,7 +15,8 @@ jobs:
       NODE_VERSION: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
