@@ -11,7 +11,7 @@ interface LogEntry {
   LSN: number
   prevLSN: number | null
   transactionID: number
-  type: 'Update' | 'Commit' | 'End' | 'CLR' | 'Checkpoint'
+  type: 'Update' | 'Commit' | 'End' | 'CLR' | 'Checkpoint' | 'Read'
   pageID: string
   persisted?: boolean
   value?: string
@@ -299,13 +299,20 @@ class Logging {
     // })
   }
 
-  read(pageID: string) {
+  read(operation: ReadOperation) {
     this.currentOperationIdx++
     this.disk.pages.forEach((p, idx) => {
-      if (p.pageID === pageID) {
+      if (p.pageID === operation.pageID) {
         this.buffer.pages[idx] = p
         return
       }
+    })
+    this.log.entries.push({
+      LSN: this.log.entries.length + 1,
+      prevLSN: this.log.entries[this.log.entries.length - 1].LSN,
+      transactionID: operation.transactionID,
+      type: 'Read',
+      pageID: operation.pageID
     })
   }
 

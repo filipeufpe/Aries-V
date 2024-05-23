@@ -8,16 +8,10 @@ import {
   faCheckDouble,
   faFlag,
   faUpload,
-  faHardDrive
+  faHardDrive,
+  faTrash
 } from '@fortawesome/free-solid-svg-icons'
-import type {
-  CommitOperation,
-  FlushOperation,
-  Operation,
-  ReadOperation,
-  WriteOperation
-} from '@/classes/logging'
-import Logging from '@/classes/logging'
+import Logging, { type Operation } from '@/classes/logging'
 import { computed, ref, onMounted } from 'vue'
 
 //variáveis do formulário
@@ -32,7 +26,11 @@ const writeButtonDisabled = computed(() => {
     formWriteTransaction.value === '' ||
     formWriteTransaction.value.split(' ').length < 3 ||
     formWriteTransaction.value.split(' ')[2] === '' ||
-    formWriteTransaction.value.split(' ').length > 3
+    formWriteTransaction.value.split(' ').length > 3 ||
+    isNaN(parseInt(formWriteTransaction.value.split(' ')[0])) ||
+    !isNaN(parseInt(formWriteTransaction.value.split(' ')[1])) ||
+    formWriteTransaction.value.split(' ')[1] === '' ||
+    formWriteTransaction.value.split(' ')[2] === ''
   )
 })
 const readButtonDisabled = computed(() => {
@@ -40,7 +38,10 @@ const readButtonDisabled = computed(() => {
     formReadTransaction.value === '' ||
     formReadTransaction.value.split(' ').length < 2 ||
     formReadTransaction.value.split(' ')[1] === '' ||
-    formReadTransaction.value.split(' ').length > 2
+    formReadTransaction.value.split(' ').length > 2 ||
+    isNaN(parseInt(formReadTransaction.value.split(' ')[0])) ||
+    !isNaN(parseInt(formReadTransaction.value.split(' ')[1])) ||
+    formReadTransaction.value.split(' ')[1] === ''
   )
 })
 const flushButtonDisabled = computed(() => {
@@ -48,7 +49,8 @@ const flushButtonDisabled = computed(() => {
     formFlushPage.value === '' ||
     formFlushPage.value.split(' ').length < 1 ||
     formFlushPage.value.split(' ')[0] === '' ||
-    formFlushPage.value.split(' ').length > 1
+    formFlushPage.value.split(' ').length > 1 ||
+    !isNaN(parseInt(formFlushPage.value))
   )
 })
 const commitButtonDisabled = computed(() => {
@@ -56,7 +58,8 @@ const commitButtonDisabled = computed(() => {
     formCommitTransaction.value === '' ||
     formCommitTransaction.value.split(' ').length < 1 ||
     formCommitTransaction.value.split(' ')[0] === '' ||
-    formCommitTransaction.value.split(' ').length > 1
+    formCommitTransaction.value.split(' ').length > 1 ||
+    isNaN(parseInt(formCommitTransaction.value))
   )
 })
 
@@ -115,7 +118,13 @@ const formatedCheckpoint = computed((): Operation => {
 
 //instancia do objeto Aries e funções
 const logging = ref(new Logging())
-const addOperation = (operation: Operation) => {
+
+function addOperation(operation: Operation) {
+  formWriteTransaction.value = ''
+  formReadTransaction.value = ''
+  formFlushPage.value = ''
+  formCommitTransaction.value = ''
+
   logging.value.addOperation(operation)
 }
 
@@ -272,6 +281,12 @@ onMounted(() => {
             </ul>
           </div>
           <div class="flex items-center space-x-2 py-5">
+            <button
+              class="bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2"
+              @click="executeOperation()"
+            >
+              <FontAwesomeIcon :icon="faTrash" />
+            </button>
             <button
               class="bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2"
               :class="{
