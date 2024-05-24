@@ -16,6 +16,7 @@ interface LogEntry {
   pageID: string
   persisted?: boolean
   value?: string
+  prevValue?: string
 }
 
 interface Log {
@@ -155,6 +156,13 @@ class Logging {
         .map((entry) => entry.LSN)
         .pop() || null
 
+    // get the entry.value of the last log entry for this page
+    const prevValue =
+      this.log.entries
+        .filter((entry) => entry.pageID === operation.pageID)
+        .map((entry) => entry.value)
+        .pop() || ''
+
     this.log.entries.forEach((entry) => {
       entry.active = false
     })
@@ -166,7 +174,8 @@ class Logging {
       transactionID: operation.transactionID,
       type: 'Update',
       pageID: operation.pageID,
-      value: operation.value
+      value: operation.value,
+      prevValue: prevValue
     })
 
     this.updateTransactionTable(operation.transactionID)
@@ -374,6 +383,41 @@ class Logging {
       bufferPage.value = value || ''
     } else {
       this.buffer.pages.push({ pageID, pageLSN, value: value || '' })
+    }
+  }
+
+  undo(transactionID: number) {
+    // Filtra entradas de log da transação específica
+    const entriesToUndo = this.log.entries.filter(
+      (entry) => entry.transactionID === transactionID && entry.type === 'Update'
+    )
+    // Desfaz cada entrada em ordem inversa
+    for (let i = entriesToUndo.length - 1; i >= 0; i--) {
+      const entry = entriesToUndo[i]
+      // Reverte a alteração
+      const page = this.buffer.pages.find((p) => p.pageID === entry.pageID)
+      if (page) {
+        // Reverte para o valor anterior ou um valor padrão se não houver
+        page.value = entry.value || ''
+      }
+      // Adiciona uma entrada de CLR no log
+      this.log.entries.push({
+        LSN: this.log.entries.length,
+        transactionID: transactionID,
+        type: 'CLR',
+        pageID: entry.pageID,
+        value: page?.value
+      })
+    }
+  }
+
+  // Método para recuperação após falha
+  recover() {
+    // Identifica transações ativas no momento da falha
+    const activeTransactions = this.transactionTable.items.filter((t) => t.status === 'Ativa')
+    // Desfaz alterações de cada transação ativa
+    for (const transaction of activeTransactions) {
+      this.undo(transaction.transactionID)
     }
   }
 }

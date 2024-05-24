@@ -9,12 +9,14 @@ import {
   faFlag,
   faUpload,
   faHardDrive,
-  faTrash,
-  faRotateLeft
+  faRotateLeft,
+  faScrewdriverWrench
 } from '@fortawesome/free-solid-svg-icons'
 import Logging, { type Operation } from '@/classes/logging'
 import { computed, ref, onMounted, onUpdated } from 'vue'
 import { toast } from 'vue3-toastify'
+
+const status = ref('normal')
 
 //variáveis do formulário
 const formWriteTransaction = ref('')
@@ -135,6 +137,17 @@ const executeOperation = () => {
   logging.value.writeLog(opn)
 }
 
+const resetState = () => {
+  status.value = 'normal'
+  logging.value = new Logging()
+  logging.value.operations.items = []
+}
+
+const startRecover = () => {
+  status.value = 'Recover'
+  logging.value.recover()
+}
+
 onMounted(() => {
   window.addEventListener('keyup', (e) => {
     if (e.key === 'ArrowRight') {
@@ -148,9 +161,14 @@ onMounted(() => {
 onUpdated(() => {
   if (
     logging.value.currentOperationIdx >= logging.value.operations.items.length &&
-    logging.value.operations.items.length > 0
+    logging.value.operations.items.length > 0 &&
+    status.value === 'normal'
   ) {
-    toast.error('CRASH!')
+    status.value = 'crash'
+  }
+  if (status.value === 'crash') {
+    toast.error('Simulando crash')
+    status.value = 'preRecovery'
   }
 })
 </script>
@@ -160,21 +178,16 @@ onUpdated(() => {
     <div id="Operations" class="basis-1/5 bg-slate-800 h-full">
       <div class="bg-slate-800 h-full p-2">
         <div class="bg-gray-700 rounded-lg shadow-lg p-2">
-          <h2 class="text-xl font-bold mb-1 text-slate-50">Operações</h2>
+          <h2 class="text-xl font-bold mb-1 text-slate-50">Operações - {{ status }}</h2>
           <div class="flex items-center space-x-2 py-5">
             <button
-              class="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2"
-              @click="logging = new Logging()"
+              class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2"
+              @click="resetState()"
             >
               <FontAwesomeIcon :icon="faRotateLeft" />
             </button>
             <button
-              class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2"
-              @click="logging.operations.items = []"
-            >
-              <FontAwesomeIcon :icon="faTrash" />
-            </button>
-            <button
+              v-show="status === 'normal'"
               class="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2"
               :class="{
                 'opacity-50 cursor-not-allowed':
@@ -188,6 +201,13 @@ onUpdated(() => {
               @click="executeOperation()"
             >
               <FontAwesomeIcon :icon="faForward" />
+            </button>
+            <button
+              v-show="status === 'preRecovery' || status === 'crash'"
+              class="flex-1 bg-green-500 hover:bg-green-600 text-white rounded-lg px-4 py-2"
+              @click="startRecover()"
+            >
+              <FontAwesomeIcon :icon="faScrewdriverWrench" />
             </button>
           </div>
           <div>
@@ -402,6 +422,7 @@ onUpdated(() => {
                 <th class="text-left bg-slate-800 p-2 text-slate-50">type</th>
                 <th class="text-left bg-slate-800 p-2 text-slate-50">pageID</th>
                 <th class="text-left bg-slate-800 p-2 text-slate-50">value</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">prevValue</th>
               </tr>
             </thead>
             <tbody>
@@ -430,6 +451,9 @@ onUpdated(() => {
                 </td>
                 <td class="p-2 text_slate_800">
                   {{ entry.value }}
+                </td>
+                <td class="p-2 text_slate_800">
+                  {{ entry.prevValue }}
                 </td>
               </tr>
             </tbody>
