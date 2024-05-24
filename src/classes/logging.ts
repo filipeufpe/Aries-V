@@ -8,9 +8,10 @@ interface Disk {
 }
 
 interface LogEntry {
+  active?: boolean
   LSN: number
-  prevLSN: number | null
-  transactionID: number
+  prevLSN?: number | null
+  transactionID?: number
   type: 'Update' | 'Commit' | 'End' | 'CLR' | 'Checkpoint' | 'Read'
   pageID: string
   persisted?: boolean
@@ -118,89 +119,26 @@ class Logging {
     this.dirtyPageTable = { items: [] }
     this.operations = {
       items: [
+        { orderID: 1, operation: { type: 'Write', transactionID: 1, pageID: 'a', value: 'one' } },
+        { orderID: 2, operation: { type: 'Write', transactionID: 2, pageID: 'b', value: 'two' } },
+        { orderID: 3, operation: { type: 'Flush', pageID: 'b' } },
+        { orderID: 4, operation: { type: 'Write', transactionID: 3, pageID: 'c', value: 'three' } },
+        { orderID: 5, operation: { type: 'Flush', pageID: 'c' } },
+        { orderID: 6, operation: { type: 'Checkpoint' } },
+        { orderID: 7, operation: { type: 'Write', transactionID: 2, pageID: 'd', value: 'four' } },
+        { orderID: 8, operation: { type: 'Write', transactionID: 1, pageID: 'a', value: 'five' } },
+        { orderID: 9, operation: { type: 'Commit', transactionID: 1 } },
+        { orderID: 10, operation: { type: 'Write', transactionID: 3, pageID: 'c', value: 'six' } },
         {
-          orderID: 1,
-          operation: {
-            type: 'Write',
-            transactionID: 1,
-            pageID: 'A',
-            value: '1'
-          }
+          orderID: 11,
+          operation: { type: 'Write', transactionID: 2, pageID: 'd', value: 'seven' }
         },
+        { orderID: 12, operation: { type: 'Flush', pageID: 'd' } },
         {
-          orderID: 2,
-          operation: {
-            type: 'Write',
-            transactionID: 2,
-            pageID: 'B',
-            value: '2'
-          }
+          orderID: 13,
+          operation: { type: 'Write', transactionID: 2, pageID: 'b', value: 'eight' }
         },
-        {
-          orderID: 3,
-          operation: {
-            type: 'Write',
-            transactionID: 3,
-            pageID: 'C',
-            value: '3'
-          }
-        },
-        {
-          orderID: 4,
-          operation: {
-            type: 'Commit',
-            transactionID: 1
-          }
-        },
-        {
-          orderID: 5,
-          operation: {
-            type: 'Checkpoint'
-          }
-        },
-        {
-          orderID: 6,
-          operation: {
-            type: 'Flush',
-            pageID: 'A'
-          }
-        },
-        {
-          orderID: 7,
-          operation: {
-            type: 'Write',
-            transactionID: 2,
-            pageID: 'B',
-            value: '7'
-          }
-        },
-        {
-          orderID: 8,
-          operation: {
-            type: 'Write',
-            transactionID: 1,
-            pageID: 'A',
-            value: '8'
-          }
-        },
-        {
-          orderID: 9,
-          operation: {
-            type: 'Write',
-            transactionID: 3,
-            pageID: 'A',
-            value: '9'
-          }
-        },
-        {
-          orderID: 10,
-          operation: {
-            type: 'Write',
-            transactionID: 2,
-            pageID: 'C',
-            value: '10'
-          }
-        }
+        { orderID: 14, operation: { type: 'Write', transactionID: 3, pageID: 'a', value: 'nine' } }
       ]
     }
     this.checkpoint = {
@@ -217,43 +155,23 @@ class Logging {
         .map((entry) => entry.LSN)
         .pop() || null
 
-    const page = this.buffer.pages.find((p) => p.pageID === operation.pageID)
+    this.log.entries.forEach((entry) => {
+      entry.active = false
+    })
 
-    const transaction = this.transactionTable.items.find(
-      (t) => t.transactionID === operation.transactionID
-    )
-    if (transaction) {
-      transaction.lastLSN = pageLSN
-    } else {
-      this.transactionTable.items.push({
-        transactionID: operation.transactionID,
-        status: 'Ativa',
-        lastLSN: pageLSN
-      })
-    }
-
-    const dirtyPage = this.dirtyPageTable.items.find((p) => p.pageID === operation.pageID)
-    if (dirtyPage) {
-      dirtyPage.recLSN = pageLSN
-    } else {
-      this.dirtyPageTable.items.push({ pageID: operation.pageID, recLSN: pageLSN })
-    }
-
-    if (page) {
-      page.value = operation.value
-      page.pageLSN = pageLSN
-    } else {
-      this.buffer.pages.push({ pageID: operation.pageID, value: operation.value, pageLSN })
-    }
-    // adiciona operation em this.log.entries
     this.log.entries.push({
-      LSN: this.log.entries.length + 1,
+      active: true,
+      LSN: this.log.entries.length,
       prevLSN: pageLSN,
       transactionID: operation.transactionID,
       type: 'Update',
       pageID: operation.pageID,
       value: operation.value
     })
+
+    this.updateTransactionTable(operation.transactionID)
+    this.updateDirtyPageTable(operation.pageID)
+    this.updateBuffer(operation.pageID)
 
     this.currentOperationIdx++
   }
@@ -273,33 +191,15 @@ class Logging {
         this.setCheckpoint()
         break
       case 'Read':
-        console.log(operation.type)
-        //this.read(operation.pageID)
+        this.read(operation)
         break
     }
-    // prevLSN =  o valor de LSN da última entrada do log que referencia pageID
-    // const prevLSN =
-    //   this.log.entries
-    //     .filter((entry) => entry.transactionID === transactionID)
-    //     .map((entry) => entry.LSN)
-    //     .pop() || null
-
-    // if (this.checkpoint.nextLSN === null) {
-    //   this.checkpoint.nextLSN = 1
-    // } else {
-    //   this.checkpoint.nextLSN += 1
-    // }
-    // this.log.entries.push({
-    //   LSN: this.log.entries.length + 1,
-    //   prevLSN,
-    //   transactionID,
-    //   type: 'Update',
-    //   pageID,
-    //   value
-    // })
   }
 
   read(operation: ReadOperation) {
+    this.log.entries.forEach((entry) => {
+      entry.active = false
+    })
     this.currentOperationIdx++
     this.disk.pages.forEach((p, idx) => {
       if (p.pageID === operation.pageID) {
@@ -308,7 +208,8 @@ class Logging {
       }
     })
     this.log.entries.push({
-      LSN: this.log.entries.length + 1,
+      active: true,
+      LSN: this.log.entries.length,
       prevLSN: this.log.entries[this.log.entries.length - 1].LSN,
       transactionID: operation.transactionID,
       type: 'Read',
@@ -317,6 +218,10 @@ class Logging {
   }
 
   commit(operation: CommitOperation) {
+    // set all log entries to be inactive
+    this.log.entries.forEach((entry) => {
+      entry.active = false
+    })
     if (this.checkpoint.nextLSN === null) {
       this.setCheckpoint()
       this.checkpoint.nextLSN = 1
@@ -330,7 +235,8 @@ class Logging {
     )
     // adicione um log de commit
     this.log.entries.push({
-      LSN: this.checkpoint.nextLSN,
+      active: true,
+      LSN: this.log.entries.length,
       prevLSN: this.log.entries[this.log.entries.length - 1].LSN,
       transactionID: operation.transactionID,
       type: 'Commit',
@@ -340,7 +246,8 @@ class Logging {
 
     // adicione um log de end
     this.log.entries.push({
-      LSN: this.checkpoint.nextLSN + 1,
+      active: true,
+      LSN: this.log.entries.length,
       prevLSN: this.log.entries[this.log.entries.length - 1].LSN,
       transactionID: operation.transactionID,
       type: 'End',
@@ -355,6 +262,10 @@ class Logging {
   }
 
   flush(operation: FlushOperation) {
+    //set all log entries to be inactive
+    this.log.entries.forEach((entry) => {
+      entry.active = false
+    })
     this.currentOperationIdx++
     const page = this.buffer.pages.find((p) => p.pageID === operation.pageID)
     if (page) {
@@ -375,14 +286,25 @@ class Logging {
   }
 
   setCheckpoint() {
+    // set all log entries to be inactive
+    this.log.entries.forEach((entry) => {
+      entry.active = false
+    })
     this.currentOperationIdx++
     this.checkpoint.nextLSN++
     this.checkpoint.transactionTable = this.clone(this.transactionTable)
     this.checkpoint.dirtyPageTable = this.clone(this.dirtyPageTable)
+    // add a log.entry for this checkpoint
+    this.log.entries.push({
+      active: true,
+      LSN: this.checkpoint.nextLSN,
+      type: 'Checkpoint',
+      pageID: '',
+      persisted: false
+    })
   }
 
   addOperation(operation: Operation) {
-    console.log(this)
     if (this.operations.items.length === 0) {
       operation.orderID = 1
     } else {
@@ -397,6 +319,62 @@ class Logging {
 
   getCurrentOperation(): OperationTypes {
     return this.operations.items[this.currentOperationIdx].operation
+  }
+
+  updateTransactionTable(transactionID: number) {
+    const lastLSN = this.log.entries
+      .filter((entry) => entry.transactionID === transactionID)
+      .map((entry) => entry.LSN)
+      .slice(-1)[0]
+
+    const transaction = this.transactionTable.items.find((t) => t.transactionID === transactionID)
+
+    if (transaction) {
+      transaction.lastLSN = lastLSN || null
+    } else {
+      this.transactionTable.items.push({
+        transactionID,
+        status: 'Ativa',
+        lastLSN: lastLSN
+      })
+    }
+  }
+
+  updateDirtyPageTable(pageID: string) {
+    const recLSN = this.log.entries
+      .filter((entry) => entry.pageID === pageID)
+      .map((entry) => entry.LSN)
+      .slice(-1)[0]
+
+    const dirtyPage = this.dirtyPageTable.items.find((p) => p.pageID === pageID)
+
+    if (!dirtyPage) {
+      this.dirtyPageTable.items.push({ pageID, recLSN })
+    }
+  }
+
+  updateBuffer(pageID: string) {
+    // search for the page in the buffer, if it exists, update it with new value and pageLSN = LSN of the last
+    // log entry for this page if it doesn't exist, create a new page in the buffer with pageLSN = LSN of the last
+    // log entry for this page and value = value of the last log entry for this page
+    const pageLSN = this.log.entries
+      .filter((entry) => entry.pageID === pageID)
+      .map((entry) => entry.LSN)
+      .slice(-1)[0]
+
+    const value = this.log.entries
+      .filter((entry) => entry.pageID === pageID)
+      .map((entry) => entry.value)
+      .slice(-1)[0]
+
+    const bufferPage = this.buffer.pages.find((p) => p.pageID === pageID)
+
+    if (bufferPage) {
+      bufferPage.pageLSN = pageLSN
+      bufferPage.value = value || ''
+    } else {
+      this.buffer.pages.push({ pageID, pageLSN, value: value || '' })
+    }
   }
 }
 export default Logging

@@ -9,10 +9,12 @@ import {
   faFlag,
   faUpload,
   faHardDrive,
-  faTrash
+  faTrash,
+  faRotateLeft
 } from '@fortawesome/free-solid-svg-icons'
 import Logging, { type Operation } from '@/classes/logging'
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUpdated } from 'vue'
+import { toast } from 'vue3-toastify'
 
 //variáveis do formulário
 const formWriteTransaction = ref('')
@@ -130,34 +132,7 @@ function addOperation(operation: Operation) {
 
 const executeOperation = () => {
   const opn = logging.value.getCurrentOperation()
-
   logging.value.writeLog(opn)
-  // const wopn = opn as WriteOperation
-  // const ropn = opn as ReadOperation
-  // const fopn = opn as FlushOperation
-  // const copn = opn as CommitOperation
-
-  // switch (opn.type) {
-  //   case 'Write':
-  //     logging.value.write(wopn.pageID, wopn.value, wopn.transactionID)
-  //     logging.value.writeLog(wopn)
-  //     break
-  //   case 'Read':
-  //     logging.value.read(ropn.pageID)
-  //     break
-  //   case 'Flush':
-  //     logging.value.flush(fopn.pageID)
-  //     break
-  //   case 'Commit':
-  //     logging.value.commit(copn.transactionID)
-  //     break
-  //   case 'Checkpoint':
-  //     logging.value.setCheckpoint()
-  //     break
-  //   default:
-  //     console.log('Operação não encontrada')
-  //     break
-  // }
 }
 
 onMounted(() => {
@@ -169,6 +144,15 @@ onMounted(() => {
     }
   })
 })
+
+onUpdated(() => {
+  if (
+    logging.value.currentOperationIdx >= logging.value.operations.items.length &&
+    logging.value.operations.items.length > 0
+  ) {
+    toast.error('CRASH!')
+  }
+})
 </script>
 
 <template>
@@ -177,6 +161,35 @@ onMounted(() => {
       <div class="bg-slate-800 h-full p-2">
         <div class="bg-gray-700 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">Operações</h2>
+          <div class="flex items-center space-x-2 py-5">
+            <button
+              class="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2"
+              @click="logging = new Logging()"
+            >
+              <FontAwesomeIcon :icon="faRotateLeft" />
+            </button>
+            <button
+              class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2"
+              @click="logging.operations.items = []"
+            >
+              <FontAwesomeIcon :icon="faTrash" />
+            </button>
+            <button
+              class="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2"
+              :class="{
+                'opacity-50 cursor-not-allowed':
+                  logging.operations.items.length === 0 ||
+                  logging.currentOperationIdx >= logging.operations.items.length
+              }"
+              :disabled="
+                logging.operations.items.length === 0 ||
+                logging.currentOperationIdx >= logging.operations.items.length
+              "
+              @click="executeOperation()"
+            >
+              <FontAwesomeIcon :icon="faForward" />
+            </button>
+          </div>
           <div>
             <div class="flex items-center space-x-2 pb-2">
               <input
@@ -280,29 +293,6 @@ onMounted(() => {
               </li>
             </ul>
           </div>
-          <div class="flex items-center space-x-2 py-5">
-            <button
-              class="bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2"
-              @click="executeOperation()"
-            >
-              <FontAwesomeIcon :icon="faTrash" />
-            </button>
-            <button
-              class="bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2"
-              :class="{
-                'opacity-50 cursor-not-allowed':
-                  logging.operations.items.length === 0 ||
-                  logging.currentOperationIdx >= logging.operations.items.length
-              }"
-              :disabled="
-                logging.operations.items.length === 0 ||
-                logging.currentOperationIdx >= logging.operations.items.length
-              "
-              @click="executeOperation()"
-            >
-              <FontAwesomeIcon :icon="faForward" />
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -326,7 +316,9 @@ onMounted(() => {
               >
                 <td class="p-2 text_slate_800">{{ transaction.transactionID }}</td>
                 <td class="p-2 text_slate_800">{{ transaction.status }}</td>
-                <td class="p-2 text_slate_800">{{ transaction.lastLSN }}</td>
+                <td class="p-2 text_slate_800">
+                  {{ transaction.lastLSN }}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -395,7 +387,7 @@ onMounted(() => {
       </div>
     </div>
     <div id="Coluna2" class="basis-2/5 bg-slate-800 h-full">
-      <div id="Log" class="bg-gray-700 h-full p-2">
+      <div id="Log" class="bg-gray-800 h-full p-2">
         <div class="bg-gray-700 rounded-lg shadow-lg p-2 overflow-y-auto">
           <h2 class="text-xl font-bold mb-1 text-slate-50">Logs</h2>
           <table class="w-full">
@@ -413,8 +405,12 @@ onMounted(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="entry in logging.log.entries" :key="entry.LSN" class="bg-slate-50">
-                <td class="p-2 text_slate_800">
+              <tr
+                v-for="entry in logging.log.entries"
+                :key="entry.LSN"
+                :class="entry.active ? 'bg-green-200' : 'bg-slate-50'"
+              >
+                <td class="p-2">
                   <FontAwesomeIcon :icon="faHardDrive" v-if="entry.persisted" />
                 </td>
                 <td class="p-2 text_slate_800">
