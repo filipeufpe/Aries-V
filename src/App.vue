@@ -10,7 +10,8 @@ import {
   faUpload,
   faHardDrive,
   faRotateLeft,
-  faScrewdriverWrench
+  faScrewdriverWrench,
+faMemory
 } from '@fortawesome/free-solid-svg-icons'
 import Logging, { type Operation } from '@/classes/logging'
 import { computed, ref, onMounted, onUpdated } from 'vue'
@@ -319,7 +320,8 @@ onUpdated(() => {
     <div id="Coluna1" class="basis-2/5 bg-slate-800 h-full">
       <div id="Transacoes" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
-          <h2 class="text-xl font-bold mb-1 text-slate-50">Transações</h2>
+          <h2 class="text-xl font-bold mb-1 text-slate-50">
+            <FontAwesomeIcon :icon="faMemory" class="pr-2"/>Transações</h2>
           <table class="w-full">
             <thead>
               <tr>
@@ -346,7 +348,8 @@ onUpdated(() => {
       </div>
       <div id="Buffer" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
-          <h2 class="text-xl font-bold mb-1 text-slate-50">Buffer</h2>
+          <h2 class="text-xl font-bold mb-1 text-slate-50">
+            <FontAwesomeIcon :icon="faMemory" class="pr-2"/>Buffer</h2>
           <table class="w-full">
             <thead>
               <tr>
@@ -367,7 +370,8 @@ onUpdated(() => {
       </div>
       <div id="DirtyTable" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
-          <h2 class="text-xl font-bold mb-1 text-slate-50">Dirty Page Table</h2>
+          <h2 class="text-xl font-bold mb-1 text-slate-50">
+            <FontAwesomeIcon :icon="faMemory" class="pr-2"/>Dados Sujos</h2>
           <table class="w-full">
             <thead>
               <tr>
@@ -386,7 +390,8 @@ onUpdated(() => {
       </div>
       <div id="disk" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
-          <h2 class="text-xl font-bold mb-1 text-slate-50">Disco</h2>
+          <h2 class="text-xl font-bold mb-1 text-slate-50">
+            <FontAwesomeIcon :icon="faHardDrive" class="pr-2"/>Disco</h2>
           <table class="w-full">
             <thead>
               <tr>
@@ -409,7 +414,7 @@ onUpdated(() => {
     <div id="Coluna2" class="basis-2/5 bg-slate-800 h-full">
       <div id="Log" class="bg-gray-800 h-full p-2">
         <div class="bg-gray-700 rounded-lg shadow-lg p-2 overflow-y-auto">
-          <h2 class="text-xl font-bold mb-1 text-slate-50">Logs</h2>
+          <h2 class="text-xl font-bold mb-1 text-slate-50">Log</h2>
           <table class="w-full">
             <thead>
               <tr>
