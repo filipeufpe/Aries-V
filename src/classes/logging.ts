@@ -12,7 +12,7 @@ interface LogEntry {
   LSN: number
   prevLSN?: number | null
   transactionID?: number
-  type: 'Update' | 'Commit' | 'End' | 'CLR' | 'Checkpoint' | 'Read'
+  type: 'Start' | 'write_item' | 'Commit' | 'End' | 'CLR' | 'Checkpoint' | 'read_item'
   pageID: string
   persisted?: boolean
   value?: string
@@ -149,42 +149,6 @@ class Logging {
     }
   }
 
-  write(operation: WriteOperation) {
-    const pageLSN =
-      this.log.entries
-        .filter((entry) => entry.pageID === operation.pageID)
-        .map((entry) => entry.LSN)
-        .pop() || null
-
-    // get the entry.value of the last log entry for this page
-    const prevValue =
-      this.log.entries
-        .filter((entry) => entry.pageID === operation.pageID)
-        .map((entry) => entry.value)
-        .pop() || ''
-
-    this.log.entries.forEach((entry) => {
-      entry.active = false
-    })
-
-    this.log.entries.push({
-      active: true,
-      LSN: this.log.entries.length,
-      prevLSN: pageLSN,
-      transactionID: operation.transactionID,
-      type: 'Update',
-      pageID: operation.pageID,
-      value: operation.value,
-      prevValue: prevValue
-    })
-
-    this.updateTransactionTable(operation.transactionID)
-    this.updateDirtyPageTable(operation.pageID)
-    this.updateBuffer(operation.pageID)
-
-    this.currentOperationIdx++
-  }
-
   writeLog(operation: OperationTypes) {
     switch (operation.type) {
       case 'Write':
@@ -205,6 +169,52 @@ class Logging {
     }
   }
 
+  write(operation: WriteOperation) {
+    const pageLSN =
+      this.log.entries
+        .filter((entry) => entry.pageID === operation.pageID)
+        .map((entry) => entry.LSN)
+        .pop() || null
+
+    // get the entry.value of the last log entry for this page
+    const prevValue =
+      this.log.entries
+        .filter((entry) => entry.pageID === operation.pageID)
+        .map((entry) => entry.value)
+        .pop() || ''
+
+    this.log.entries.forEach((entry) => {
+      entry.active = false
+    })
+    if (this.log.entries.filter((e) => e.transactionID === operation.transactionID).length === 0) {
+      this.log.entries.push({
+        active: true,
+        LSN: this.log.entries.length,
+        transactionID: operation.transactionID,
+        type: 'Start',
+        pageID: ''
+      })
+    }
+
+    this.log.entries.push({
+      active: true,
+      LSN: this.log.entries.length,
+      prevLSN: pageLSN,
+      transactionID: operation.transactionID,
+      type: 'write_item',
+      pageID: operation.pageID,
+      value: operation.value,
+      prevValue: prevValue
+    })
+
+    this.flush({ type: 'Flush', pageID: operation.pageID })
+    this.updateTransactionTable(operation.transactionID)
+    this.updateDirtyPageTable(operation.pageID)
+    this.updateBuffer(operation.pageID)
+
+    this.currentOperationIdx++
+  }
+
   read(operation: ReadOperation) {
     this.log.entries.forEach((entry) => {
       entry.active = false
@@ -221,7 +231,7 @@ class Logging {
       LSN: this.log.entries.length,
       prevLSN: this.log.entries[this.log.entries.length - 1].LSN,
       transactionID: operation.transactionID,
-      type: 'Read',
+      type: 'read_item',
       pageID: operation.pageID
     })
   }
@@ -275,18 +285,29 @@ class Logging {
     this.log.entries.forEach((entry) => {
       entry.active = false
     })
-    this.currentOperationIdx++
+    //this.currentOperationIdx++
     const page = this.buffer.pages.find((p) => p.pageID === operation.pageID)
     if (page) {
-      if (this.checkpoint.nextLSN === null) {
-        this.checkpoint.nextLSN = 1
-      } else {
-        this.checkpoint.nextLSN += 1
-      }
+      // if (this.checkpoint.nextLSN === null) {
+      //   this.checkpoint.nextLSN = 1
+      // } else {
+      //   this.checkpoint.nextLSN += 1
+      // }
       this.log.entries.forEach((entry) => {
         entry.persisted = true
       })
-      this.disk.pages.push(page)
+      if (this.disk.pages.filter((p) => p.pageID === operation.pageID).length === 0) {
+        this.disk.pages.push(page)
+      } else {
+        // update the page in the disk with pageLSN and page.value
+        this.disk.pages.forEach((p) => {
+          if (p.pageID === operation.pageID) {
+            p.pageLSN = this.log.entries[this.log.entries.length - 1].LSN
+            p.value = page.value
+          }
+        })
+      }
+
       this.dirtyPageTable.items = this.dirtyPageTable.items.filter(
         (p) => p.pageID !== operation.pageID
       )
@@ -320,6 +341,12 @@ class Logging {
       operation.orderID = this.operations.items[this.operations.items.length - 1].orderID + 1
     }
     this.operations.items.push(operation)
+    if (operation.operation.type === 'Write') {
+      const page = operation.operation.pageID
+      if (this.disk.pages.filter((p) => p.pageID === page).length === 0) {
+        this.disk.pages.push({ pageID: page, pageLSN: null, value: '' })
+      }
+    }
   }
 
   clone(obj: any) {
@@ -389,7 +416,7 @@ class Logging {
   undo(transactionID: number) {
     // Filtra entradas de log da transação específica
     const entriesToUndo = this.log.entries.filter(
-      (entry) => entry.transactionID === transactionID && entry.type === 'Update'
+      (entry) => entry.transactionID === transactionID && entry.type === 'write_item'
     )
     // Desfaz cada entrada em ordem inversa
     for (let i = entriesToUndo.length - 1; i >= 0; i--) {
@@ -413,6 +440,7 @@ class Logging {
 
   // Método para recuperação após falha
   recover() {
+    this.log.entries = this.log.entries.filter((entry) => entry.persisted)
     // Identifica transações ativas no momento da falha
     const activeTransactions = this.transactionTable.items.filter((t) => t.status === 'Ativa')
     // Desfaz alterações de cada transação ativa
