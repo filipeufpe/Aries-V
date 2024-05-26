@@ -342,12 +342,15 @@ class Logging {
 
   flush(operation: FlushOperation) {
     //set all log entries to be inactive
-    this.log.entries.forEach((entry) => {
-      entry.active = false
-    })
+
     const currOp = this.getCurrentOperation()
     if (currOp?.type === 'Flush') {
       this.currentOperationIdx++
+    }
+    if (currOp?.type === 'Flush') {
+      this.log.entries.forEach((entry) => {
+        entry.active = false
+      })
     }
     const page = this.buffer.pages.find((p) => p.pageID === operation.pageID)
     if (page) {
@@ -377,9 +380,12 @@ class Logging {
 
   setCheckpoint() {
     // set all log entries to be inactive
-    this.log.entries.forEach((entry) => {
-      entry.active = false
-    })
+    const currOp = this.getCurrentOperation()
+    if (currOp?.type === 'Checkpoint') {
+      this.log.entries.forEach((entry) => {
+        entry.active = false
+      })
+    }
     this.currentOperationIdx++
     this.checkpoint.nextLSN = this.log.entries.length
     console.log(
