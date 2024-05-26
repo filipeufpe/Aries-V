@@ -11,13 +11,15 @@ import {
   faHardDrive,
   faRotateLeft,
   faScrewdriverWrench,
-  faMemory
+  faMemory,
+  faCircleQuestion
 } from '@fortawesome/free-solid-svg-icons'
 import Logging, { type Operation } from '@/classes/logging'
 import { computed, ref, onMounted, onUpdated } from 'vue'
 import { toast } from 'vue3-toastify'
 
 const status = ref('normal')
+const showModal = ref(false)
 
 //variáveis do formulário
 const formWriteTransaction = ref('')
@@ -186,7 +188,15 @@ onUpdated(() => {
     <div id="Operations" class="basis-1/5 bg-slate-800 h-full">
       <div class="bg-slate-800 h-full p-2">
         <div class="bg-gray-700 rounded-lg shadow-lg p-2">
-          <h2 class="text-xl font-bold mb-1 text-slate-50">Operações - {{ status }}</h2>
+          <h2 class="text-xl font-bold mb-1 text-slate-50 flex items-center space-x-2">
+            Operações&nbsp;
+            <button
+              class="rounded-full bg-blue-500 w-9 h-9 flex items-center justify-center"
+              @click="showModal = true"
+            >
+              <FontAwesomeIcon :icon="faCircleQuestion" class="text-s" />
+            </button>
+          </h2>
           <div class="flex items-center space-x-2 py-5">
             <button
               class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2"
@@ -221,10 +231,11 @@ onUpdated(() => {
           <div>
             <div class="flex items-center space-x-2 pb-2">
               <input
+                id="write"
                 v-model="formWriteTransaction"
                 type="text"
                 class="border border-gray-300 rounded-lg px-4 py-2"
-                placeholder="WRITE T P V"
+                placeholder="WRITE T D V"
               />
               <button
                 class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
@@ -237,10 +248,11 @@ onUpdated(() => {
             </div>
             <div class="flex items-center space-x-2 pb-2">
               <input
+                id="read"
                 v-model="formReadTransaction"
                 type="text"
                 class="border border-gray-300 rounded-lg px-4 py-2"
-                placeholder="READ T P"
+                placeholder="READ T D"
               />
               <button
                 class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
@@ -253,10 +265,11 @@ onUpdated(() => {
             </div>
             <div class="flex items-center space-x-2 pb-2">
               <input
+                id="flush"
                 v-model="formFlushPage"
                 type="text"
                 class="border border-gray-300 rounded-lg px-4 py-2"
-                placeholder="Flush P"
+                placeholder="Flush D"
               />
               <button
                 class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
@@ -269,6 +282,7 @@ onUpdated(() => {
             </div>
             <div class="flex items-center space-x-2 pb-2">
               <input
+                id="commit"
                 v-model="formCommitTransaction"
                 type="text"
                 class="border border-gray-300 rounded-lg px-4 py-2"
@@ -480,6 +494,69 @@ onUpdated(() => {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  </div>
+  <div v-if="showModal" class="fixed inset-0 flex items-center justify-center z-50">
+    <div class="absolute inset-0 bg-black opacity-50"></div>
+    <div class="bg-gray-700 rounded-lg shadow-lg p-6 relative z-10">
+      <h2 class="text-xl font-bold mb-4 text-slate-50">Ajuda</h2>
+      <div class="text-slate-50 mb-4">
+        <p class="pb-2">
+          Este é um simulador de um sistema de recuperação de falhas de um banco de dados utilizando
+          recuperação imediata.
+        </p>
+        <p class="pb-2">
+          Para simular uma falha, pressione a
+          <span class="text-yellow-500 font-black">seta para a direita</span> ou o botão
+          <span class="text-yellow-500 font-black">
+            <FontAwesomeIcon :icon="faForward" />
+          </span>
+        </p>
+        <hr class="my-4" />
+        <p class="pb-2">
+          Para adicionar uma operação, preencha um dos campos de texto e clique no botão
+          correspondente.
+        </p>
+        <p class="pb-2">
+          <span class="text-yellow-500 font-black">WRITE</span> - Escreve um valor em uma dado.
+          Utilize a notação <span class="text-yellow-500 font-black">T</span>: Transação - Numero,
+          <span class="text-yellow-500 font-black">D</span>: Dado - String,
+          <span class="text-yellow-500 font-black">V</span>: Valor - String. Em seguida pressione o
+          botão
+          <span class="text-yellow-500 font-black"><FontAwesomeIcon :icon="faFilePen" /></span>
+        </p>
+        <p class="pb-2">
+          <span class="text-yellow-500 font-black">READ</span> - Lê um valor de um dado. Utilize a
+          notação <span class="text-yellow-500 font-black">T</span>: Transação - Numero,
+          <span class="text-yellow-500 font-black">D</span>: Dado - String. Em seguida pressione o
+          botão
+          <span class="text-yellow-500 font-black"><FontAwesomeIcon :icon="faUpload" /></span>
+        </p>
+        <p class="pb-2">
+          <span class="text-yellow-500 font-black">FLUSH</span> - Escreve uma dado no disco. Utilize
+          a notação <span class="text-yellow-500 font-black">D</span>: Dado - String. Em seguida
+          pressione o botão
+          <span class="text-yellow-500 font-black"><FontAwesomeIcon :icon="faDownload" /></span>
+        </p>
+        <p class="pb-2">
+          <span class="text-yellow-500 font-black">COMMIT</span> - Finaliza uma transação. Utilize a
+          notação <span class="text-yellow-500 font-black">T</span>: Transação - Numero. Em seguida
+          pressione o botão
+          <span class="text-yellow-500 font-black"><FontAwesomeIcon :icon="faCheckDouble" /></span>
+        </p>
+        <p class="pb-2">
+          Para adicionar um checkpoint, clique no botão
+          <span class="text-yellow-500 font-black"> <FontAwesomeIcon :icon="faFlag" /> </span>
+        </p>
+      </div>
+      <div class="flex justify-end space-x-2">
+        <button
+          @click="showModal = false"
+          class="bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2"
+        >
+          Fechar
+        </button>
       </div>
     </div>
   </div>
