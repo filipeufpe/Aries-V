@@ -11,7 +11,7 @@ import {
   faHardDrive,
   faRotateLeft,
   faScrewdriverWrench,
-faMemory
+  faMemory
 } from '@fortawesome/free-solid-svg-icons'
 import Logging, { type Operation } from '@/classes/logging'
 import { computed, ref, onMounted, onUpdated } from 'vue'
@@ -135,7 +135,9 @@ function addOperation(operation: Operation) {
 
 const executeOperation = () => {
   const opn = logging.value.getCurrentOperation()
-  logging.value.writeLog(opn)
+  if (opn) {
+    logging.value.newLogEntry(opn)
+  }
 }
 
 const resetState = () => {
@@ -148,6 +150,10 @@ const startRecover = () => {
   status.value = 'Recover'
   logging.value.recover()
 }
+
+// const undo = () => {
+//   logging.value.undo()
+// }
 
 onMounted(() => {
   window.addEventListener('keyup', (e) => {
@@ -166,9 +172,10 @@ onUpdated(() => {
     status.value === 'normal'
   ) {
     status.value = 'crash'
+    logging.value.simulateCrash()
   }
   if (status.value === 'crash') {
-    toast.error('Simulando crash')
+    toast.error('Crash')
     status.value = 'preRecovery'
   }
 })
@@ -296,7 +303,9 @@ onUpdated(() => {
                 v-for="(item, index) in logging.operations.items"
                 :key="item.orderID"
               >
-                <div>
+                <div
+                  :class="logging.currentOperationIdx > index ? 'text-slate-500' : 'text-slate-200'"
+                >
                   <span v-if="'transactionID' in item.operation">
                     T_{{ item.operation.transactionID }}
                   </span>
@@ -321,13 +330,14 @@ onUpdated(() => {
       <div id="Transacoes" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">
-            <FontAwesomeIcon :icon="faMemory" class="pr-2"/>Transações</h2>
+            <FontAwesomeIcon :icon="faMemory" class="pr-2" />Transações
+          </h2>
           <table class="w-full">
             <thead>
               <tr>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">ID</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">T</th>
                 <th class="text-left bg-slate-800 p-2 text-slate-50">Status</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">lastLSN</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
               </tr>
             </thead>
             <tbody>
@@ -349,13 +359,14 @@ onUpdated(() => {
       <div id="Buffer" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">
-            <FontAwesomeIcon :icon="faMemory" class="pr-2"/>Buffer</h2>
+            <FontAwesomeIcon :icon="faMemory" class="pr-2" />Buffer
+          </h2>
           <table class="w-full">
             <thead>
               <tr>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">pageID</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">value</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">pageLSN</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">X</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">Valor</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
               </tr>
             </thead>
             <tbody>
@@ -371,12 +382,13 @@ onUpdated(() => {
       <div id="DirtyTable" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">
-            <FontAwesomeIcon :icon="faMemory" class="pr-2"/>Dados Sujos</h2>
+            <FontAwesomeIcon :icon="faMemory" class="pr-2" />Dados Sujos
+          </h2>
           <table class="w-full">
             <thead>
               <tr>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">pageID</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">recLSN</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">X</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
               </tr>
             </thead>
             <tbody>
@@ -391,13 +403,14 @@ onUpdated(() => {
       <div id="disk" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">
-            <FontAwesomeIcon :icon="faHardDrive" class="pr-2"/>Disco</h2>
+            <FontAwesomeIcon :icon="faHardDrive" class="pr-2" />Disco
+          </h2>
           <table class="w-full">
             <thead>
               <tr>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">pageID</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">value</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">pageLSN</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">X</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">Valor</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
               </tr>
             </thead>
             <tbody>
@@ -415,6 +428,9 @@ onUpdated(() => {
       <div id="Log" class="bg-gray-800 h-full p-2">
         <div class="bg-gray-700 rounded-lg shadow-lg p-2 overflow-y-auto">
           <h2 class="text-xl font-bold mb-1 text-slate-50">Log</h2>
+          <div v-show="false">
+            <pre class="text-slate-200">{{ logging.redoTransactions }}</pre>
+          </div>
           <table class="w-full">
             <thead>
               <tr>
@@ -423,11 +439,11 @@ onUpdated(() => {
                 </th>
                 <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
                 <th class="text-left bg-slate-800 p-2 text-slate-50">prevLSN</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">transactionID</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">type</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">pageID</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">value</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">prevValue</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">T</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">Tipo</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">X</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">AFIM</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">BFIM</th>
               </tr>
             </thead>
             <tbody>
@@ -463,9 +479,6 @@ onUpdated(() => {
               </tr>
             </tbody>
           </table>
-          <div>
-            <!-- <pre class="text-slate-200">{{ logging.checkpoint }}</pre> -->
-          </div>
         </div>
       </div>
     </div>
