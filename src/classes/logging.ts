@@ -12,7 +12,7 @@ interface LogEntry {
   LSN: number
   prevLSN?: number | null
   transactionID?: number
-  type: 'Start' | 'write_item' | 'Commit' | 'End' | 'CLR' | 'Checkpoint' | 'read_item'
+  type: 'Start' | 'write_item' | 'Commit' | 'End' | 'CLR' | 'Checkpoint' | 'read_item' | 'Abort'
   pageID: string
   persisted?: boolean
   value?: string
@@ -85,14 +85,27 @@ export interface ReadOperation {
   pageID: string
 }
 
+export interface EndOperation {
+  type: 'End'
+  transactionID: number
+}
+
+export interface AbortOperation {
+  type: 'Abort'
+  transactionID: number
+}
+
 type OperationTypes =
   | WriteOperation
   | FlushOperation
   | CommitOperation
   | CheckpointOperation
   | ReadOperation
+  | EndOperation
+  | AbortOperation
 
 export interface Operation {
+  hidden?: boolean
   orderID: number
   operation: OperationTypes
 }
@@ -120,43 +133,7 @@ class Logging {
     this.transactionTable = { items: [] }
     this.dirtyPageTable = { items: [] }
     this.operations = {
-      items: [
-        { orderID: 1, operation: { type: 'Write', transactionID: 1, pageID: 'Preço', value: '1' } },
-        { orderID: 2, operation: { type: 'Write', transactionID: 1, pageID: 'Preço', value: '2' } },
-        { orderID: 3, operation: { type: 'Write', transactionID: 2, pageID: 'Preço', value: '3' } },
-        { orderID: 4, operation: { type: 'Commit', transactionID: 1 } },
-        { orderID: 5, operation: { type: 'Write', transactionID: 2, pageID: 'Preço', value: '4' } },
-        { orderID: 6, operation: { type: 'Flush', pageID: 'Preço' } },
-        { orderID: 7, operation: { type: 'Read', transactionID: 2, pageID: 'Preço' } },
-        { orderID: 8, operation: { type: 'Write', transactionID: 3, pageID: 'Preço', value: '5' } },
-        {
-          orderID: 9,
-          operation: { type: 'Write', transactionID: 3, pageID: 'Preço', value: '75' }
-        },
-        { orderID: 10, operation: { type: 'Read', transactionID: 3, pageID: 'Preço' } }
-      ]
-      // items: [
-      //   { orderID: 1, operation: { type: 'Write', transactionID: 1, pageID: 'a', value: 'one' } },
-      //   { orderID: 2, operation: { type: 'Write', transactionID: 1, pageID: 'b', value: 'two' } },
-      //   { orderID: 3, operation: { type: 'Flush', pageID: 'b' } },
-      //   { orderID: 4, operation: { type: 'Write', transactionID: 1, pageID: 'c', value: 'three' } },
-      //   { orderID: 5, operation: { type: 'Flush', pageID: 'c' } },
-      //   { orderID: 6, operation: { type: 'Checkpoint' } },
-      //   { orderID: 7, operation: { type: 'Write', transactionID: 1, pageID: 'd', value: 'four' } },
-      //   { orderID: 8, operation: { type: 'Write', transactionID: 1, pageID: 'a', value: 'five' } },
-      //   { orderID: 9, operation: { type: 'Commit', transactionID: 1 } },
-      //   { orderID: 10, operation: { type: 'Write', transactionID: 1, pageID: 'c', value: 'six' } },
-      //   {
-      //     orderID: 11,
-      //     operation: { type: 'Write', transactionID: 2, pageID: 'd', value: 'seven' }
-      //   },
-      //   { orderID: 12, operation: { type: 'Flush', pageID: 'd' } },
-      //   {
-      //     orderID: 13,
-      //     iperation: { type: 'Write', transactionID: 2, pageID: 'b', value: 'eight' }
-      //   },
-      //   { orderID: 14, operation: { type: 'Write', transactionID: 3, pageID: 'a', value: 'nine' } }
-      // ]
+      items: []
     }
     this.redoTransactions = []
     this.checkpoint = {
@@ -187,6 +164,14 @@ class Logging {
       case 'Read':
         console.clear()
         this.read(operation)
+        break
+      case 'End':
+        console.clear()
+        this.end(operation)
+        break
+      case 'Abort':
+        console.clear()
+        this.abort(operation)
         break
     }
   }
@@ -231,13 +216,6 @@ class Logging {
     this.updateTransactionTable(operation.transactionID)
     this.updateBuffer(operation.pageID)
     this.updateDirtyPageTable(operation.pageID)
-    if (this.log.entries[this.log.entries.length - 2].type === 'Start') {
-      console.log(`Como essa é a primeira operação de escrita da transação ${operation.transactionID},
-        o log é persistido em disco 
-        Dessa forma garantimos que ao falhar, a transação possa ser identificada e desfeita.
-      `)
-      this.flush({ type: 'Flush', pageID: operation.pageID })
-    }
     this.currentOperationIdx++
     // explain the logic behind this in a console.log output
     console.log(
@@ -294,6 +272,21 @@ class Logging {
     console.log(
       `A transação ${operation.transactionID} foi consolidada. Uma entrada do tipo 'Commit' é adicionada ao log.`
     )
+
+    console.log(
+      `Além disso, uma entrada do tipo 'End' é adicionada ao log, para indicar que a transação foi finalizada.`
+    )
+    this.addOperationAtPosition(
+      {
+        orderID: this.currentOperationIdx + 1,
+        operation: {
+          type: 'End',
+          transactionID: operation.transactionID
+        }
+      },
+      this.currentOperationIdx + 1
+    )
+
     this.log.entries.push({
       active: true,
       LSN: this.log.entries.length,
@@ -305,26 +298,9 @@ class Logging {
     })
 
     // adicione um log de end
-    console.log(
-      `Além disso, uma entrada do tipo 'End' é adicionada ao log, para indicar que a transação foi finalizada.`
-    )
-    this.log.entries.push({
-      active: true,
-      LSN: this.log.entries.length,
-      prevLSN: this.log.entries[this.log.entries.length - 1].LSN,
-      transactionID: operation.transactionID,
-      type: 'End',
-      pageID: '',
-      persisted: false
-    })
 
     // marque todas as entradas do log como persisted
-    this.log.entries.forEach((entry) => {
-      console.log(
-        `Como estamos utilizando o algoritmo de recuperação imediata, precisamos garantir que todas as entradas do log sejam persistidas.`
-      )
-      entry.persisted = true
-    })
+    this.persistLog()
 
     console.log(
       `Também precisamos garantir que todos os dados alterados pela transação ${operation.transactionID} sejam persistidos no disco.`
@@ -338,6 +314,44 @@ class Logging {
       `Por fim, a transação ${operation.transactionID} é removida da tabela de transações. E um Checkpoint é realizado.`
     )
     this.setCheckpoint()
+  }
+
+  end(operation: EndOperation) {
+    // set all log entries to be inactive
+    this.log.entries.forEach((entry) => {
+      entry.active = false
+    })
+    this.currentOperationIdx++
+    // remove transaction from transactionTable
+    this.transactionTable.items = this.transactionTable.items.filter(
+      (t) => t.transactionID !== operation.transactionID
+    )
+    this.log.entries.push({
+      active: true,
+      LSN: this.log.entries.length,
+      transactionID: operation.transactionID,
+      type: 'End',
+      pageID: ''
+    })
+  }
+
+  abort(operation: AbortOperation) {
+    // set all log entries to be inactive
+    this.log.entries.forEach((entry) => {
+      entry.active = false
+    })
+    this.currentOperationIdx++
+    // remove transaction from transactionTable
+    this.transactionTable.items = this.transactionTable.items.filter(
+      (t) => t.transactionID !== operation.transactionID
+    )
+    this.log.entries.push({
+      active: true,
+      LSN: this.log.entries.length,
+      transactionID: operation.transactionID,
+      type: 'Abort',
+      pageID: ''
+    })
   }
 
   flush(operation: FlushOperation) {
@@ -416,12 +430,26 @@ class Logging {
       operation.orderID = this.operations.items[this.operations.items.length - 1].orderID + 1
     }
     this.operations.items.push(operation)
-    if (operation.operation.type === 'Write') {
+    if (operation.operation.type === 'Write' || operation.operation.type === 'Read') {
       const page = operation.operation.pageID
       if (this.disk.pages.filter((p) => p.pageID === page).length === 0) {
         this.disk.pages.push({ pageID: page, pageLSN: null, value: '' })
       }
     }
+  }
+
+  addOperationAtPosition(operation: Operation, index: number) {
+    if (index < 0 || index > this.operations.items.length) {
+      console.log(`A posição ${index} não é válida.`)
+      return
+    }
+    this.operations.items.splice(index, 0, operation)
+    this.operations.items.forEach((op, idx) => {
+      // adiciona 1 a orderID de todas as operações após a operação adicionada
+      if (idx > index) {
+        op.orderID++
+      }
+    })
   }
 
   clone(obj: any) {
@@ -542,6 +570,12 @@ class Logging {
       .reverse()
   }
 
+  persistLog() {
+    this.log.entries.forEach((entry) => {
+      entry.persisted = true
+    })
+  }
+
   undo() {
     const entriesToUndo: LogEntry[] = []
     this.redoTransactions.forEach((transaction) => {
@@ -599,6 +633,7 @@ class Logging {
     this.transactionTable.items = []
     this.buffer.pages = []
     this.dirtyPageTable.items = []
+    console.table(this.log.entries.filter((e) => e.persisted))
     this.log.entries = this.log.entries.filter((entry) => entry.persisted)
   }
 

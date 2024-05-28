@@ -12,7 +12,10 @@ import {
   faRotateLeft,
   faScrewdriverWrench,
   faMemory,
-  faCircleQuestion
+  faCircleQuestion,
+  faTriangleExclamation,
+  faBan,
+  faStop
 } from '@fortawesome/free-solid-svg-icons'
 import Logging, { type Operation } from '@/classes/logging'
 import { computed, ref, onMounted, onUpdated } from 'vue'
@@ -26,6 +29,8 @@ const formWriteTransaction = ref('')
 const formReadTransaction = ref('')
 const formFlushPage = ref('')
 const formCommitTransaction = ref('')
+const formEndTransaction = ref('')
+const formAbortTransaction = ref('')
 
 //estado de botões
 const writeButtonDisabled = computed(() => {
@@ -37,7 +42,13 @@ const writeButtonDisabled = computed(() => {
     isNaN(parseInt(formWriteTransaction.value.split(' ')[0])) ||
     !isNaN(parseInt(formWriteTransaction.value.split(' ')[1])) ||
     formWriteTransaction.value.split(' ')[1] === '' ||
-    formWriteTransaction.value.split(' ')[2] === ''
+    formWriteTransaction.value.split(' ')[2] === '' ||
+    // check if the value at [1] index exists in logging.buffer.pages as a pageID
+    !logging.value.operations.items.some(
+      (op) =>
+        op.operation.type === 'Read' &&
+        formWriteTransaction.value.split(' ')[1] === op.operation.pageID
+    )
   )
 })
 const readButtonDisabled = computed(() => {
@@ -51,6 +62,42 @@ const readButtonDisabled = computed(() => {
     formReadTransaction.value.split(' ')[1] === ''
   )
 })
+const endButtonDisabled = computed(() => {
+  return (
+    formEndTransaction.value === '' ||
+    formEndTransaction.value.split(' ').length < 1 ||
+    formEndTransaction.value.split(' ')[0] === '' ||
+    formEndTransaction.value.split(' ').length > 1 ||
+    isNaN(parseInt(formEndTransaction.value.split(' ')[0])) ||
+    !logging.value.operations.items
+      .filter((op) => op.operation.type === 'Write' || op.operation.type === 'Read')
+      .some(
+        (op) =>
+          (op.operation?.type === 'Write' || op.operation?.type === 'Read') &&
+          op.operation?.transactionID === parseInt(formEndTransaction.value.split(' ')[0])
+      )
+  )
+})
+
+const abortButtonDisabled = computed(() => {
+  return (
+    formAbortTransaction.value === '' ||
+    formAbortTransaction.value.split(' ').length < 1 ||
+    formAbortTransaction.value.split(' ')[0] === '' ||
+    formAbortTransaction.value.split(' ').length > 1 ||
+    isNaN(parseInt(formAbortTransaction.value.split(' ')[0])) ||
+    // create a subset of logging.value.operations.items that only have write and read operations,
+    // then check if the value of [0] index exists in the subset as a transactionID
+    !logging.value.operations.items
+      .filter((op) => op.operation.type === 'Write' || op.operation.type === 'Read')
+      .some(
+        (op) =>
+          (op.operation?.type === 'Write' || op.operation?.type === 'Read') &&
+          op.operation?.transactionID === parseInt(formAbortTransaction.value.split(' ')[0])
+      )
+  )
+})
+
 const flushButtonDisabled = computed(() => {
   return (
     formFlushPage.value === '' ||
@@ -60,6 +107,7 @@ const flushButtonDisabled = computed(() => {
     !isNaN(parseInt(formFlushPage.value))
   )
 })
+
 const commitButtonDisabled = computed(() => {
   return (
     formCommitTransaction.value === '' ||
@@ -71,6 +119,7 @@ const commitButtonDisabled = computed(() => {
 })
 
 //propriedades computadas
+
 const formatedTransaction = computed((): Operation => {
   return {
     orderID: logging.value.operations.items.length + 1,
@@ -79,6 +128,26 @@ const formatedTransaction = computed((): Operation => {
       transactionID: parseInt(formWriteTransaction.value.split(' ')[0]),
       pageID: formWriteTransaction.value.split(' ')[1],
       value: formWriteTransaction.value.split(' ')[2]
+    }
+  }
+})
+
+const formatedEndTransaction = computed((): Operation => {
+  return {
+    orderID: logging.value.operations.items.length + 1,
+    operation: {
+      type: 'End',
+      transactionID: parseInt(formEndTransaction.value.split(' ')[0])
+    }
+  }
+})
+
+const formatedAbortTransaction = computed((): Operation => {
+  return {
+    orderID: logging.value.operations.items.length + 1,
+    operation: {
+      type: 'Abort',
+      transactionID: parseInt(formAbortTransaction.value.split(' ')[0])
     }
   }
 })
@@ -131,6 +200,8 @@ function addOperation(operation: Operation) {
   formReadTransaction.value = ''
   formFlushPage.value = ''
   formCommitTransaction.value = ''
+  formEndTransaction.value = ''
+  formAbortTransaction.value = ''
 
   logging.value.addOperation(operation)
 }
@@ -146,16 +217,13 @@ const resetState = () => {
   status.value = 'normal'
   logging.value = new Logging()
   logging.value.operations.items = []
+  logging.value.currentOperationIdx = 0
 }
 
 const startRecover = () => {
   status.value = 'Recover'
   logging.value.recover()
 }
-
-// const undo = () => {
-//   logging.value.undo()
-// }
 
 onMounted(() => {
   window.addEventListener('keyup', (e) => {
@@ -168,14 +236,6 @@ onMounted(() => {
 })
 
 onUpdated(() => {
-  if (
-    logging.value.currentOperationIdx >= logging.value.operations.items.length &&
-    logging.value.operations.items.length > 0 &&
-    status.value === 'normal'
-  ) {
-    status.value = 'crash'
-    logging.value.simulateCrash()
-  }
   if (status.value === 'crash') {
     toast.error('Crash')
     status.value = 'preRecovery'
@@ -203,6 +263,17 @@ onUpdated(() => {
               @click="resetState()"
             >
               <FontAwesomeIcon :icon="faRotateLeft" />
+            </button>
+            <button
+              class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2"
+              @click="
+                () => {
+                  logging.simulateCrash()
+                  status = 'crash'
+                }
+              "
+            >
+              <FontAwesomeIcon :icon="faTriangleExclamation" />
             </button>
             <button
               v-show="status === 'normal'"
@@ -264,6 +335,40 @@ onUpdated(() => {
               </button>
             </div>
             <div class="flex items-center space-x-2 pb-2">
+              <input
+                id="end"
+                v-model="formEndTransaction"
+                type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2"
+                placeholder="END T"
+              />
+              <button
+                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': endButtonDisabled }"
+                :disabled="endButtonDisabled"
+                @click="addOperation(formatedEndTransaction)"
+              >
+                <FontAwesomeIcon :icon="faStop" />
+              </button>
+            </div>
+            <div class="flex items-center space-x-2 pb-2">
+              <input
+                id="abort"
+                v-model="formAbortTransaction"
+                type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2"
+                placeholder="ABORT T"
+              />
+              <button
+                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': abortButtonDisabled }"
+                :disabled="abortButtonDisabled"
+                @click="addOperation(formatedAbortTransaction)"
+              >
+                <FontAwesomeIcon :icon="faBan" />
+              </button>
+            </div>
+            <div class="flex items-center space-x-2 pb-2" v-if="false">
               <input
                 id="flush"
                 v-model="formFlushPage"
@@ -393,7 +498,7 @@ onUpdated(() => {
           </table>
         </div>
       </div>
-      <div id="DirtyTable" class="p-2">
+      <div id="DirtyTable" class="p-2" v-if="false">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">
             <FontAwesomeIcon :icon="faMemory" class="pr-2" />Dados Sujos
@@ -518,37 +623,102 @@ onUpdated(() => {
           Para adicionar uma operação, preencha um dos campos de texto e clique no botão
           correspondente.
         </p>
-        <p class="pb-2">
-          <span class="text-yellow-500 font-black">WRITE</span> - Escreve um valor em uma dado.
-          Utilize a notação <span class="text-yellow-500 font-black">T</span>: Transação - Numero,
-          <span class="text-yellow-500 font-black">D</span>: Dado - String,
-          <span class="text-yellow-500 font-black">V</span>: Valor - String. Em seguida pressione o
-          botão
-          <span class="text-yellow-500 font-black"><FontAwesomeIcon :icon="faFilePen" /></span>
-        </p>
-        <p class="pb-2">
-          <span class="text-yellow-500 font-black">READ</span> - Lê um valor de um dado. Utilize a
-          notação <span class="text-yellow-500 font-black">T</span>: Transação - Numero,
-          <span class="text-yellow-500 font-black">D</span>: Dado - String. Em seguida pressione o
-          botão
-          <span class="text-yellow-500 font-black"><FontAwesomeIcon :icon="faUpload" /></span>
-        </p>
-        <p class="pb-2">
-          <span class="text-yellow-500 font-black">FLUSH</span> - Escreve uma dado no disco. Utilize
-          a notação <span class="text-yellow-500 font-black">D</span>: Dado - String. Em seguida
-          pressione o botão
-          <span class="text-yellow-500 font-black"><FontAwesomeIcon :icon="faDownload" /></span>
-        </p>
-        <p class="pb-2">
-          <span class="text-yellow-500 font-black">COMMIT</span> - Finaliza uma transação. Utilize a
-          notação <span class="text-yellow-500 font-black">T</span>: Transação - Numero. Em seguida
-          pressione o botão
-          <span class="text-yellow-500 font-black"><FontAwesomeIcon :icon="faCheckDouble" /></span>
-        </p>
-        <p class="pb-2">
-          Para adicionar um checkpoint, clique no botão
-          <span class="text-yellow-500 font-black"> <FontAwesomeIcon :icon="faFlag" /> </span>
-        </p>
+
+        <table class="w-full bg-slate-900">
+          <thead>
+            <tr>
+              <th class="text-left bg-slate-800 p-2 text-slate-50">Operaçãot</th>
+              <th class="text-left bg-slate-800 p-2 text-slate-50">Descrição</th>
+              <th class="text-left bg-slate-800 p-2 text-slate-50"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="p-2 bg-slate-600">
+                <span class="text-yellow-500 font-black">WRITE</span>
+              </td>
+              <td class="p-2 bg-slate-600">
+                Escreve um valor em uma dado. Utilize a notação
+                <span class="text-yellow-500 font-black">T</span>: Transação - Numero,
+                <span class="text-yellow-500 font-black">D</span>: Dado - String,
+                <span class="text-yellow-500 font-black">V</span>: Valor - String.
+              </td>
+              <td class="p-2 bg-slate-600">
+                <button>
+                  <FontAwesomeIcon :icon="faFilePen" />
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td class="p-2 bg-slate-600">
+                <span class="text-yellow-500 font-black">READ</span>
+              </td>
+              <td class="p-2 bg-slate-600">
+                Lê um valor de um dado. Utilize a notação
+                <span class="text-yellow-500 font-black">T</span>: Transação - Numero,
+                <span class="text-yellow-500 font-black">D</span>: Dado - String.
+              </td>
+              <td class="p-2 bg-slate-600">
+                <button>
+                  <FontAwesomeIcon :icon="faUpload" />
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td class="p-2 bg-slate-600">
+                <span class="text-yellow-500 font-black">END</span>
+              </td>
+              <td class="p-2 bg-slate-600">
+                Finaliza uma transação. Utilize a notação
+                <span class="text-yellow-500 font-black">T</span>: Transação - Numero.
+              </td>
+              <td class="p-2 bg-slate-600">
+                <button>
+                  <FontAwesomeIcon :icon="faStop" />
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td class="p-2 bg-slate-600">
+                <span class="text-yellow-500 font-black">ABORT</span>
+              </td>
+              <td class="p-2 bg-slate-600">
+                Aborta uma transação. Utilize a notação
+                <span class="text-yellow-500 font-black">T</span>: Transação - Numero.
+              </td>
+              <td class="p-2 bg-slate-600">
+                <button>
+                  <FontAwesomeIcon :icon="faBan" />
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td class="p-2 bg-slate-600">
+                <span class="text-yellow-500 font-black">COMMIT</span>
+              </td>
+              <td class="p-2 bg-slate-600">
+                Consolida uma transação. Utilize a notação
+                <span class="text-yellow-500 font-black">T</span>: Transação - Numero.
+              </td>
+              <td class="p-2 bg-slate-600">
+                <button>
+                  <FontAwesomeIcon :icon="faCheckDouble" />
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td class="p-2 bg-slate-600">
+                <span class="text-yellow-500 font-black">CHECKPOINT</span>
+              </td>
+              <td class="p-2 bg-slate-600">Insere uma entrada de Checkpoint no log</td>
+              <td class="p-2 bg-slate-600">
+                <button>
+                  <FontAwesomeIcon :icon="faFlag" />
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
       <div class="flex justify-end space-x-2">
         <button
