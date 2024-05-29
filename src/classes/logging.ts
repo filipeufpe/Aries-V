@@ -425,12 +425,6 @@ class Logging {
       operation.orderID = this.operations.items[this.operations.items.length - 1].orderID + 1
     }
     this.operations.items.push(operation)
-    // if (operation.operation.type === 'Write' || operation.operation.type === 'Read') {
-    //   const page = operation.operation.pageID
-    //   if (this.disk.pages.filter((p) => p.pageID === page).length === 0) {
-    //     this.disk.pages.push({ pageID: page, pageLSN: null, value: '' })
-    //   }
-    // }
   }
 
   addOperationAtPosition(operation: Operation, index: number) {
@@ -470,6 +464,7 @@ class Logging {
 
     pages.forEach((page) => {
       this.addOperation({
+        hidden: true,
         orderID: this.operations.items.length + 1,
         operation: { type: 'Flush', pageID: page }
       })
