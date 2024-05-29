@@ -14,8 +14,8 @@ export default defineConfig({
     sourcemap: true
   },
   plugins: [
-    vue()
-    //VueDevTools()
+    vue() //,
+    // VueDevTools()
   ],
   resolve: {
     alias: {

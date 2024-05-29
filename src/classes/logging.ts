@@ -266,40 +266,38 @@ class Logging {
   }
 
   commit(operation: CommitOperation) {
-    if (!this.operations.items[this.currentOperationIdx - 1].hidden) {
-      this.log.entries.forEach((entry) => {
-        entry.active = false
-      })
+    this.log.entries.forEach((entry) => {
+      entry.active = false
+    })
 
-      this.transactionTable.items.forEach((transaction) => {
-        if (transaction.transactionID === operation.transactionID) {
-          transaction.status = 'Consolidada'
-        }
-      })
+    this.transactionTable.items.forEach((transaction) => {
+      if (transaction.transactionID === operation.transactionID) {
+        transaction.status = 'Consolidada'
+      }
+    })
 
-      const lastLSN = this.log.entries
-        .filter((entry) => entry.transactionID === operation.transactionID)
-        .map((entry) => entry.LSN)
-        .slice(-1)[0]
+    const lastLSN = this.log.entries
+      .filter((entry) => entry.transactionID === operation.transactionID)
+      .map((entry) => entry.LSN)
+      .slice(-1)[0]
 
-      console.log(
-        `A transação ${operation.transactionID} foi consolidada. Uma entrada do tipo 'Commit' é adicionada ao log.`
-      )
+    console.log(
+      `A transação ${operation.transactionID} foi consolidada. Uma entrada do tipo 'Commit' é adicionada ao log.`
+    )
 
-      console.log(
-        `Além disso, uma entrada do tipo 'End' é adicionada ao log, para indicar que a transação foi finalizada.`
-      )
+    console.log(
+      `Além disso, uma entrada do tipo 'End' é adicionada ao log, para indicar que a transação foi finalizada.`
+    )
 
-      this.log.entries.push({
-        active: true,
-        LSN: this.log.entries.length,
-        prevLSN: lastLSN,
-        transactionID: operation.transactionID,
-        type: 'Commit',
-        pageID: '',
-        persisted: false
-      })
-    }
+    this.log.entries.push({
+      active: true,
+      LSN: this.log.entries.length,
+      prevLSN: lastLSN,
+      transactionID: operation.transactionID,
+      type: 'Commit',
+      pageID: '',
+      persisted: false
+    })
     this.currentOperationIdx++
   }
 
