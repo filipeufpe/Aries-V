@@ -327,23 +327,6 @@ onUpdated(() => {
           <div>
             <div class="flex items-center space-x-2 pb-2">
               <input
-                id="write"
-                v-model="formWriteTransaction"
-                type="text"
-                class="border border-gray-300 rounded-lg px-4 py-2"
-                placeholder="WRITE T D V"
-              />
-              <button
-                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-                :class="{ 'opacity-50 cursor-not-allowed': writeButtonDisabled }"
-                :disabled="writeButtonDisabled"
-                @click="addOperation(formatedTransaction)"
-              >
-                <FontAwesomeIcon :icon="faFilePen" />
-              </button>
-            </div>
-            <div class="flex items-center space-x-2 pb-2">
-              <input
                 id="read"
                 v-model="formReadTransaction"
                 type="text"
@@ -357,6 +340,23 @@ onUpdated(() => {
                 @click="addOperation(formatedReadTransaction)"
               >
                 <FontAwesomeIcon :icon="faUpload" />
+              </button>
+            </div>
+            <div class="flex items-center space-x-2 pb-2">
+              <input
+                id="write"
+                v-model="formWriteTransaction"
+                type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2"
+                placeholder="WRITE T D V"
+              />
+              <button
+                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': writeButtonDisabled }"
+                :disabled="writeButtonDisabled"
+                @click="addOperation(formatedTransaction)"
+              >
+                <FontAwesomeIcon :icon="faFilePen" />
               </button>
             </div>
             <div class="flex items-center space-x-2 pb-2">
