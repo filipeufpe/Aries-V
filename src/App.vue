@@ -47,7 +47,14 @@ const writeButtonDisabled = computed(() => {
     !logging.value.operations.items.some(
       (op) =>
         op.operation.type === 'Read' &&
-        formWriteTransaction.value.split(' ')[1] === op.operation.pageID
+        formWriteTransaction.value.split(' ')[1] === op.operation.pageID &&
+        op.operation.transactionID === parseInt(formWriteTransaction.value.split(' ')[0])
+    ) ||
+    // check this.operations.items if transactionID has an 'End' or 'Abort' operation
+    logging.value.operations.items.some(
+      (op) =>
+        (op.operation.type === 'End' || op.operation.type === 'Abort') &&
+        op.operation?.transactionID === parseInt(formWriteTransaction.value.split(' ')[0])
     )
   )
 })
@@ -75,7 +82,12 @@ const endButtonDisabled = computed(() => {
         (op) =>
           (op.operation?.type === 'Write' || op.operation?.type === 'Read') &&
           op.operation?.transactionID === parseInt(formEndTransaction.value.split(' ')[0])
-      )
+      ) ||
+    logging.value.operations.items.some(
+      (op) =>
+        (op.operation.type === 'Abort' || op.operation.type === 'End') &&
+        op.operation?.transactionID === parseInt(formEndTransaction.value.split(' ')[0])
+    )
   )
 })
 
@@ -94,7 +106,13 @@ const abortButtonDisabled = computed(() => {
         (op) =>
           (op.operation?.type === 'Write' || op.operation?.type === 'Read') &&
           op.operation?.transactionID === parseInt(formAbortTransaction.value.split(' ')[0])
-      )
+      ) ||
+    // check if the transaction has an end operation
+    logging.value.operations.items.some(
+      (op) =>
+        (op.operation.type === 'End' || op.operation.type === 'Abort') &&
+        op.operation?.transactionID === parseInt(formAbortTransaction.value.split(' ')[0])
+    )
   )
 })
 
@@ -114,7 +132,14 @@ const commitButtonDisabled = computed(() => {
     formCommitTransaction.value.split(' ').length < 1 ||
     formCommitTransaction.value.split(' ')[0] === '' ||
     formCommitTransaction.value.split(' ').length > 1 ||
-    isNaN(parseInt(formCommitTransaction.value))
+    isNaN(parseInt(formCommitTransaction.value)) ||
+    !logging.value.operations.items.some((e) => {
+      if (e.operation.type === 'End') {
+        return e.operation?.transactionID === parseInt(formCommitTransaction.value)
+      } else {
+        return false
+      }
+    })
   )
 })
 
@@ -420,6 +445,7 @@ onUpdated(() => {
               <li
                 class="flex items-center space-x-2 border rounded border-slate-600 mb-1 p-2"
                 v-for="(item, index) in logging.operations.items"
+                v-show="!item.hidden"
                 :key="item.orderID"
               >
                 <div
@@ -445,11 +471,13 @@ onUpdated(() => {
         </div>
       </div>
     </div>
+
     <div id="Coluna1" class="basis-2/5 bg-slate-800 h-full">
-      <div id="Transacoes" class="p-2">
+      <div id="TransacoesAtivas" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">
             <FontAwesomeIcon :icon="faMemory" class="pr-2" />Transações
+            <span class="text-yellow-300">Ativas</span>
           </h2>
           <table class="w-full">
             <thead>
@@ -461,13 +489,79 @@ onUpdated(() => {
             </thead>
             <tbody>
               <tr
-                v-for="transaction in logging.transactionTable.items"
+                v-for="transaction in logging.transactionTable.items.filter(
+                  (i) => i.status === 'Ativa'
+                )"
                 :key="transaction.transactionID"
                 class="bg-slate-50"
               >
-                <td class="p-2 text_slate_800">{{ transaction.transactionID }}</td>
-                <td class="p-2 text_slate_800">{{ transaction.status }}</td>
-                <td class="p-2 text_slate_800">
+                <td class="p-2 bg-yellow-100 text_slate_800">{{ transaction.transactionID }}</td>
+                <td class="p-2 bg-yellow-100 text_slate_800">{{ transaction.status }}</td>
+                <td class="p-2 bg-yellow-100 text_slate_800">
+                  {{ transaction.lastLSN }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div id="TransacoesConsolidadas" class="p-2">
+        <div class="bg-gray-600 rounded-lg shadow-lg p-2">
+          <h2 class="text-xl font-bold mb-1 text-slate-50">
+            <FontAwesomeIcon :icon="faMemory" class="pr-2" />Transações
+            <span class="text-green-300">Consolidadas</span>
+          </h2>
+          <table class="w-full">
+            <thead>
+              <tr>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">T</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">Status</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="transaction in logging.transactionTable.items.filter(
+                  (i) => i.status === 'Consolidada'
+                )"
+                :key="transaction.transactionID"
+                class="bg-slate-50"
+              >
+                <td class="p-2 bg-green-200 text_slate_800">{{ transaction.transactionID }}</td>
+                <td class="p-2 bg-green-200 text_slate_800">{{ transaction.status }}</td>
+                <td class="p-2 bg-green-200 text_slate_800">
+                  {{ transaction.lastLSN }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div id="TransacoesAbortadas" class="p-2">
+        <div class="bg-gray-600 rounded-lg shadow-lg p-2">
+          <h2 class="text-xl font-bold mb-1 text-slate-50">
+            <FontAwesomeIcon :icon="faMemory" class="pr-2" />Transações
+            <span class="text-red-400">Abortadas</span>
+          </h2>
+          <table class="w-full">
+            <thead>
+              <tr>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">T</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">Status</th>
+                <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="transaction in logging.transactionTable.items.filter(
+                  (i) => i.status === 'Abortada'
+                )"
+                :key="transaction.transactionID"
+                class="bg-slate-50"
+              >
+                <td class="p-2 bg-red-100 text_slate_800">{{ transaction.transactionID }}</td>
+                <td class="p-2 bg-red-100 text_slate_800">{{ transaction.status }}</td>
+                <td class="p-2 bg-red-100 text_slate_800">
                   {{ transaction.lastLSN }}
                 </td>
               </tr>
@@ -547,9 +641,6 @@ onUpdated(() => {
       <div id="Log" class="bg-gray-800 h-full p-2">
         <div class="bg-gray-700 rounded-lg shadow-lg p-2 overflow-y-auto">
           <h2 class="text-xl font-bold mb-1 text-slate-50">Log</h2>
-          <div v-show="false">
-            <pre class="text-slate-200">{{ logging.redoTransactions }}</pre>
-          </div>
           <table class="w-full">
             <thead>
               <tr>

@@ -241,6 +241,16 @@ class Logging {
         return
       }
     })
+
+    if (this.log.entries.filter((e) => e.transactionID === operation.transactionID).length === 0) {
+      this.log.entries.push({
+        active: true,
+        LSN: this.log.entries.length,
+        transactionID: operation.transactionID,
+        type: 'Start',
+        pageID: ''
+      })
+    }
     console.log(`
       A transação ${operation.transactionID} leu o dado ${operation.pageID} do disco. 
       E uma entrada do tipo 'read_item' é adicionada ao log.
@@ -252,68 +262,45 @@ class Logging {
       type: 'read_item',
       pageID: operation.pageID
     })
+    this.updateTransactionTable(operation.transactionID)
   }
 
   commit(operation: CommitOperation) {
-    // set all log entries to be inactive
-    this.log.entries.forEach((entry) => {
-      entry.active = false
-    })
-    // remova a transação da transactionTable
-    this.transactionTable.items = this.transactionTable.items.filter(
-      (t) => t.transactionID !== operation.transactionID
-    )
-    // the LSN of the last log.entry for this transaction
-    const lastLSN = this.log.entries
-      .filter((entry) => entry.transactionID === operation.transactionID)
-      .map((entry) => entry.LSN)
-      .slice(-1)[0]
-    // adicione um log de commit
-    console.log(
-      `A transação ${operation.transactionID} foi consolidada. Uma entrada do tipo 'Commit' é adicionada ao log.`
-    )
-
-    console.log(
-      `Além disso, uma entrada do tipo 'End' é adicionada ao log, para indicar que a transação foi finalizada.`
-    )
-    this.addOperationAtPosition(
-      {
-        orderID: this.currentOperationIdx + 1,
-        operation: {
-          type: 'End',
-          transactionID: operation.transactionID
-        }
-      },
-      this.currentOperationIdx + 1
-    )
-
-    this.log.entries.push({
-      active: true,
-      LSN: this.log.entries.length,
-      prevLSN: lastLSN,
-      transactionID: operation.transactionID,
-      type: 'Commit',
-      pageID: '',
-      persisted: false
-    })
-
-    // adicione um log de end
-
-    // marque todas as entradas do log como persisted
-    this.persistLog()
-
-    console.log(
-      `Também precisamos garantir que todos os dados alterados pela transação ${operation.transactionID} sejam persistidos no disco.`
-    )
-    this.log.entries
-      .filter((entry) => entry.transactionID === operation.transactionID)
-      .forEach((entry) => {
-        this.flush({ type: 'Flush', pageID: entry.pageID })
+    if (!this.operations.items[this.currentOperationIdx - 1].hidden) {
+      this.log.entries.forEach((entry) => {
+        entry.active = false
       })
-    console.log(
-      `Por fim, a transação ${operation.transactionID} é removida da tabela de transações. E um Checkpoint é realizado.`
-    )
-    this.setCheckpoint()
+
+      this.transactionTable.items.forEach((transaction) => {
+        if (transaction.transactionID === operation.transactionID) {
+          transaction.status = 'Consolidada'
+        }
+      })
+
+      const lastLSN = this.log.entries
+        .filter((entry) => entry.transactionID === operation.transactionID)
+        .map((entry) => entry.LSN)
+        .slice(-1)[0]
+
+      console.log(
+        `A transação ${operation.transactionID} foi consolidada. Uma entrada do tipo 'Commit' é adicionada ao log.`
+      )
+
+      console.log(
+        `Além disso, uma entrada do tipo 'End' é adicionada ao log, para indicar que a transação foi finalizada.`
+      )
+
+      this.log.entries.push({
+        active: true,
+        LSN: this.log.entries.length,
+        prevLSN: lastLSN,
+        transactionID: operation.transactionID,
+        type: 'Commit',
+        pageID: '',
+        persisted: false
+      })
+    }
+    this.currentOperationIdx++
   }
 
   end(operation: EndOperation) {
@@ -323,9 +310,9 @@ class Logging {
     })
     this.currentOperationIdx++
     // remove transaction from transactionTable
-    this.transactionTable.items = this.transactionTable.items.filter(
-      (t) => t.transactionID !== operation.transactionID
-    )
+    //    this.transactionTable.items = this.transactionTable.items.filter(
+    //(t) => t.transactionID !== operation.transactionID
+    //)
     this.log.entries.push({
       active: true,
       LSN: this.log.entries.length,
@@ -342,15 +329,21 @@ class Logging {
     })
     this.currentOperationIdx++
     // remove transaction from transactionTable
-    this.transactionTable.items = this.transactionTable.items.filter(
-      (t) => t.transactionID !== operation.transactionID
-    )
+    //    this.transactionTable.items = this.transactionTable.items.filter(
+    //(t) => t.transactionID !== operation.transactionID
+    //)
     this.log.entries.push({
       active: true,
       LSN: this.log.entries.length,
       transactionID: operation.transactionID,
       type: 'Abort',
       pageID: ''
+    })
+
+    this.transactionTable.items.forEach((transaction) => {
+      if (transaction.transactionID === operation.transactionID) {
+        transaction.status = 'Abortada'
+      }
     })
   }
 
@@ -368,9 +361,6 @@ class Logging {
     }
     const page = this.buffer.pages.find((p) => p.pageID === operation.pageID)
     if (page) {
-      this.log.entries.forEach((entry) => {
-        entry.persisted = true
-      })
       if (this.disk.pages.filter((p) => p.pageID === operation.pageID).length === 0) {
         console.log(`O dado ${operation.pageID} não existe no disco, portanto será adicionado.`)
         this.disk.pages.push(page)
@@ -385,9 +375,9 @@ class Logging {
         })
       }
 
-      this.dirtyPageTable.items = this.dirtyPageTable.items.filter(
-        (p) => p.pageID !== operation.pageID
-      )
+      // this.dirtyPageTable.items = this.dirtyPageTable.items.filter(
+      //   (p) => p.pageID !== operation.pageID
+      // )
       this.buffer.pages = this.buffer.pages.filter((p) => p.pageID !== operation.pageID)
     }
   }
@@ -424,18 +414,23 @@ class Logging {
   }
 
   addOperation(operation: Operation) {
+    if (operation.operation.type === 'Commit') {
+      console.log('PORRA!')
+      this.apendFlushOperations(operation.operation.transactionID)
+    }
+
     if (this.operations.items.length === 0) {
       operation.orderID = 1
     } else {
       operation.orderID = this.operations.items[this.operations.items.length - 1].orderID + 1
     }
     this.operations.items.push(operation)
-    if (operation.operation.type === 'Write' || operation.operation.type === 'Read') {
-      const page = operation.operation.pageID
-      if (this.disk.pages.filter((p) => p.pageID === page).length === 0) {
-        this.disk.pages.push({ pageID: page, pageLSN: null, value: '' })
-      }
-    }
+    // if (operation.operation.type === 'Write' || operation.operation.type === 'Read') {
+    //   const page = operation.operation.pageID
+    //   if (this.disk.pages.filter((p) => p.pageID === page).length === 0) {
+    //     this.disk.pages.push({ pageID: page, pageLSN: null, value: '' })
+    //   }
+    // }
   }
 
   addOperationAtPosition(operation: Operation, index: number) {
@@ -446,9 +441,38 @@ class Logging {
     this.operations.items.splice(index, 0, operation)
     this.operations.items.forEach((op, idx) => {
       // adiciona 1 a orderID de todas as operações após a operação adicionada
-      if (idx > index) {
+      if (idx >= index) {
         op.orderID++
       }
+    })
+  }
+
+  apendFlushOperations(transactionID: number) {
+    console.log('rodou')
+    // para cada item em this.operations.items, retorne valores distintos de pageID
+    // de todas as operações de escrita de transactionID
+    const pages = this.operations.items
+      .filter((op) => {
+        if (op.operation.type === 'Write' && op.operation.transactionID === transactionID) {
+          return true
+        } else {
+          return false
+        }
+      })
+      .map((op) => {
+        if (op.operation.type === 'Write' && op.operation.transactionID === transactionID) {
+          return op.operation.pageID
+        } else {
+          return ''
+        }
+      })
+      .filter((value, index, self) => self.indexOf(value) === index)
+
+    pages.forEach((page) => {
+      this.addOperation({
+        orderID: this.operations.items.length + 1,
+        operation: { type: 'Flush', pageID: page }
+      })
     })
   }
 
@@ -463,7 +487,7 @@ class Logging {
     return null
   }
 
-  updateTransactionTable(transactionID: number) {
+  updateTransactionTable(transactionID: number, status?: string) {
     const lastLSN = this.log.entries
       .filter((entry) => entry.transactionID === transactionID)
       .map((entry) => entry.LSN)
@@ -477,6 +501,7 @@ class Logging {
         A última linha de log que referencia essa transação é ${lastLSN}, esse valor é inserido na tabela de transações.`
       )
       transaction.lastLSN = lastLSN || null
+      transaction.status = status || transaction.status
     } else {
       console.log(
         `A transação ${transactionID} não existe na tabela de transações e será adicionada. Uma entrada do tipo START é adicionada ao log.`
