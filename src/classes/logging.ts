@@ -127,7 +127,15 @@ class Logging {
 
   constructor() {
     this.currentOperationIdx = 0
-    this.disk = { pages: [] }
+    this.disk = {
+      pages: [
+        { pageID: 'A', pageLSN: null, value: '10' },
+        { pageID: 'B', pageLSN: null, value: '20' },
+        { pageID: 'C', pageLSN: null, value: '30' },
+        { pageID: 'D', pageLSN: null, value: '40' },
+        { pageID: 'E', pageLSN: null, value: '50' }
+      ]
+    }
     this.log = { entries: [] }
     this.buffer = { pages: [] }
     this.transactionTable = { items: [] }
@@ -260,7 +268,8 @@ class Logging {
       LSN: this.log.entries.length,
       transactionID: operation.transactionID,
       type: 'read_item',
-      pageID: operation.pageID
+      pageID: operation.pageID,
+      value: this.disk.pages.find((p) => p.pageID === operation.pageID)?.value || ''
     })
     this.updateTransactionTable(operation.transactionID)
   }
@@ -339,7 +348,10 @@ class Logging {
     })
 
     this.transactionTable.items.forEach((transaction) => {
-      if (transaction.transactionID === operation.transactionID) {
+      if (
+        transaction.transactionID === operation.transactionID &&
+        transaction.status !== 'Consolidada'
+      ) {
         transaction.status = 'Abortada'
       }
     })
@@ -413,7 +425,6 @@ class Logging {
 
   addOperation(operation: Operation) {
     if (operation.operation.type === 'Commit') {
-      console.log('PORRA!')
       this.apendFlushOperations(operation.operation.transactionID)
     }
 
@@ -551,34 +562,44 @@ class Logging {
   }
 
   getPendingTransactions(): TransactionTableItem[] {
+    const pendingTransactions = this.checkpoint.transactionTable?.items || []
+    console.table(this.checkpoint.transactionTable?.items)
+    pendingTransactions.forEach((transaction) => {
+      if (transaction.status === 'Ativa') {
+        transaction.status = 'Abortada'
+      }
+    })
+    console.table(pendingTransactions)
+    return pendingTransactions
+
     // activeTransactions = all active transactions in the transactionTable
-    const activeTransactions = this.transactionTable.items.filter(
-      (transaction) => transaction.status === 'Ativa'
-    )
+    // const activeTransactions = this.transactionTable.items.filter(
+    //   (transaction) => transaction.status === 'Ativa'
+    // )
 
-    // search in log.entries for transactions that have a start but not an end and return their transactionID
-    const pendingTransactions = this.log.entries
-      .filter((entry) => entry.type === 'Start')
-      .map((entry) => entry.transactionID)
-      .filter(
-        (transactionID) =>
-          this.log.entries.filter(
-            (entry) => entry.transactionID === transactionID && entry.type === 'End'
-          ).length === 0
-      )
+    // // search in log.entries for transactions that have a start but not an end and return their transactionID
+    // const pendingTransactions = this.log.entries
+    //   .filter((entry) => entry.type === 'Start')
+    //   .map((entry) => entry.transactionID)
+    //   .filter(
+    //     (transactionID) =>
+    //       this.log.entries.filter(
+    //         (entry) => entry.transactionID === transactionID && entry.type === 'End'
+    //       ).length === 0
+    //   )
 
-      // for each transaction in pendingTransactions, build a transactionTableItem
-      .map((transactionID) => {
-        return {
-          transactionID,
-          status: 'Pendente',
-          lastLSN: this.log.entries
-            .filter((entry) => entry.transactionID === transactionID)
-            .map((entry) => entry.LSN)
-            .slice(-1)[0]
-        }
-      }) as TransactionTableItem[]
-    return [...activeTransactions, ...pendingTransactions]
+    //   // for each transaction in pendingTransactions, build a transactionTableItem
+    //   .map((transactionID) => {
+    //     return {
+    //       transactionID,
+    //       status: 'Pendente',
+    //       lastLSN: this.log.entries
+    //         .filter((entry) => entry.transactionID === transactionID)
+    //         .map((entry) => entry.LSN)
+    //         .slice(-1)[0]
+    //     }
+    //   }) as TransactionTableItem[]
+    // return [...activeTransactions, ...pendingTransactions]
   }
 
   getTransactionEntries(transactionID: number): LogEntry[] {

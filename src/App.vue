@@ -151,7 +151,7 @@ const formatedTransaction = computed((): Operation => {
     operation: {
       type: 'Write',
       transactionID: parseInt(formWriteTransaction.value.split(' ')[0]),
-      pageID: formWriteTransaction.value.split(' ')[1],
+      pageID: formWriteTransaction.value.split(' ')[1].toUpperCase(),
       value: formWriteTransaction.value.split(' ')[2]
     }
   }
@@ -193,7 +193,7 @@ const formatedReadTransaction = computed((): Operation => {
     operation: {
       type: 'Read',
       transactionID: parseInt(formReadTransaction.value.split(' ')[0]),
-      pageID: formReadTransaction.value.split(' ')[1]
+      pageID: formReadTransaction.value.split(' ')[1].toUpperCase()
     }
   }
 })
@@ -726,6 +726,21 @@ onUpdated(() => {
           <tbody>
             <tr>
               <td class="p-2 bg-slate-600">
+                <span class="text-yellow-500 font-black">READ</span>
+              </td>
+              <td class="p-2 bg-slate-600">
+                Lê um valor de um dado. Utilize a notação
+                <span class="text-yellow-500 font-black">T</span>: Transação - Numero,
+                <span class="text-yellow-500 font-black">D</span>: Dado - String.
+              </td>
+              <td class="p-2 bg-slate-600">
+                <button>
+                  <FontAwesomeIcon :icon="faUpload" />
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td class="p-2 bg-slate-600">
                 <span class="text-yellow-500 font-black">WRITE</span>
               </td>
               <td class="p-2 bg-slate-600">
@@ -737,21 +752,6 @@ onUpdated(() => {
               <td class="p-2 bg-slate-600">
                 <button>
                   <FontAwesomeIcon :icon="faFilePen" />
-                </button>
-              </td>
-            </tr>
-            <tr>
-              <td class="p-2 bg-slate-600">
-                <span class="text-yellow-500 font-black">READ</span>
-              </td>
-              <td class="p-2 bg-slate-600">
-                Lê um valor de um dado. Utilize a notação
-                <span class="text-yellow-500 font-black">T</span>: Transação - Numero,
-                <span class="text-yellow-500 font-black">D</span>: Dado - String.
-              </td>
-              <td class="p-2 bg-slate-600">
-                <button>
-                  <FontAwesomeIcon :icon="faUpload" />
                 </button>
               </td>
             </tr>
