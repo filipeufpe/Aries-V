@@ -4,7 +4,7 @@ import {
   faCaretLeft,
   faForward,
   faFilePen,
-  faDownload,
+  // faDownload,
   faCheckDouble,
   faFlag,
   faUpload,
@@ -47,7 +47,7 @@ const writeButtonDisabled = computed(() => {
     !logging.value.operations.items.some(
       (op) =>
         op.operation.type === 'Read' &&
-        formWriteTransaction.value.split(' ')[1] === op.operation.pageID &&
+        formWriteTransaction.value.split(' ')[1].toUpperCase() === op.operation.pageID &&
         op.operation.transactionID === parseInt(formWriteTransaction.value.split(' ')[0])
     ) ||
     // check this.operations.items if transactionID has an 'End' or 'Abort' operation
@@ -116,15 +116,15 @@ const abortButtonDisabled = computed(() => {
   )
 })
 
-const flushButtonDisabled = computed(() => {
-  return (
-    formFlushPage.value === '' ||
-    formFlushPage.value.split(' ').length < 1 ||
-    formFlushPage.value.split(' ')[0] === '' ||
-    formFlushPage.value.split(' ').length > 1 ||
-    !isNaN(parseInt(formFlushPage.value))
-  )
-})
+// const flushButtonDisabled = computed(() => {
+//   return (
+//     formFlushPage.value === '' ||
+//     formFlushPage.value.split(' ').length < 1 ||
+//     formFlushPage.value.split(' ')[0] === '' ||
+//     formFlushPage.value.split(' ').length > 1 ||
+//     !isNaN(parseInt(formFlushPage.value))
+//   )
+// })
 
 const commitButtonDisabled = computed(() => {
   return (
@@ -177,15 +177,15 @@ const formatedAbortTransaction = computed((): Operation => {
   }
 })
 
-const formatedFlushPage = computed((): Operation => {
-  return {
-    orderID: logging.value.operations.items.length + 1,
-    operation: {
-      type: 'Flush',
-      pageID: formFlushPage.value
-    }
-  }
-})
+// const formatedFlushPage = computed((): Operation => {
+//   return {
+//     orderID: logging.value.operations.items.length + 1,
+//     operation: {
+//       type: 'Flush',
+//       pageID: formFlushPage.value
+//     }
+//   }
+// })
 
 const formatedReadTransaction = computed((): Operation => {
   return {
@@ -393,7 +393,7 @@ onUpdated(() => {
                 <FontAwesomeIcon :icon="faBan" />
               </button>
             </div>
-            <div class="flex items-center space-x-2 pb-2" v-if="false">
+            <!-- <div class="flex items-center space-x-2 pb-2" v-if="false">
               <input
                 id="flush"
                 v-model="formFlushPage"
@@ -409,7 +409,7 @@ onUpdated(() => {
               >
                 <FontAwesomeIcon :icon="faDownload" />
               </button>
-            </div>
+            </div> -->
             <div class="flex items-center space-x-2 pb-2">
               <input
                 id="commit"
@@ -689,6 +689,12 @@ onUpdated(() => {
               </tr>
             </tbody>
           </table>
+          <div class="text-slate-50">
+            <pre>
+            {{ logging.operations.items }}
+          </pre
+            >
+          </div>
         </div>
       </div>
     </div>

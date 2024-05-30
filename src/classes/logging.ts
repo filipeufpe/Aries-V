@@ -68,6 +68,7 @@ export interface WriteOperation {
 export interface FlushOperation {
   type: 'Flush'
   pageID: string
+  transactionID: number
 }
 
 export interface CommitOperation {
@@ -193,7 +194,7 @@ class Logging {
     // get the entry.value of the last log entry for this page
     const prevValue =
       this.log.entries
-        .filter((entry) => entry.pageID === operation.pageID && entry.type === 'write_item')
+        .filter((entry) => entry.pageID === operation.pageID && entry.type === 'read_item')
         .map((entry) => entry.value)
         .pop() || ''
 
@@ -240,7 +241,7 @@ class Logging {
       if (p.pageID === operation.pageID) {
         if (this.buffer.pages.filter((p) => p.pageID === operation.pageID).length === 0) {
           console.log(`O dado ${operation.pageID} não está na memória, portanto será adicionado.`)
-          this.buffer.pages.push(p)
+          this.buffer.pages.push(this.clone(p))
           return
         } else {
           console.log(`O dado ${operation.pageID} já está na memória, portanto será atualizado.`)
@@ -360,6 +361,13 @@ class Logging {
   flush(operation: FlushOperation) {
     //set all log entries to be inactive
 
+    const correspondentLogEntry = this.log.entries.find(
+      (entry) =>
+        entry.pageID === operation.pageID &&
+        entry.type === 'write_item' &&
+        entry.transactionID === operation.transactionID
+    )
+
     const currOp = this.getCurrentOperation()
     if (currOp?.type === 'Flush') {
       this.currentOperationIdx++
@@ -379,7 +387,7 @@ class Logging {
         console.log(`O dado ${operation.pageID} já existe no disco, portanto será atualizado.`)
         this.disk.pages.forEach((p) => {
           if (p.pageID === operation.pageID) {
-            p.pageLSN = this.log.entries[this.log.entries.length - 1].LSN
+            p.pageLSN = correspondentLogEntry?.LSN || null
             p.value = page.value
           }
         })
@@ -424,16 +432,47 @@ class Logging {
   }
 
   addOperation(operation: Operation) {
-    if (operation.operation.type === 'Commit') {
-      this.apendFlushOperations(operation.operation.transactionID)
-    }
-
     if (this.operations.items.length === 0) {
       operation.orderID = 1
     } else {
       operation.orderID = this.operations.items[this.operations.items.length - 1].orderID + 1
     }
     this.operations.items.push(operation)
+
+    if (operation.operation.type === 'Checkpoint') {
+      const transactionsToCommit = this.findEndOperationsSinceLastCheckpoint()
+      console.table(transactionsToCommit)
+    }
+  }
+
+  findEndOperationsSinceLastCheckpoint() {
+    // Encontra o índice do último "Checkpoint"
+    let lastCheckpointIndex = this.operations.items.length - 1
+    while (
+      lastCheckpointIndex >= 0 &&
+      this.operations.items[lastCheckpointIndex].operation.type !== 'Checkpoint'
+    ) {
+      lastCheckpointIndex--
+    }
+
+    // Se nenhum "Checkpoint" for encontrado, retorna todos os "End"
+    if (lastCheckpointIndex < 0) {
+      return this.operations.items.filter((item) => item.operation.type === 'End')
+    }
+
+    // Encontra o índice do "Checkpoint" que o precede
+    let checkpointAnteriorIndex = lastCheckpointIndex - 1
+    while (
+      checkpointAnteriorIndex >= 0 &&
+      this.operations.items[checkpointAnteriorIndex].operation.type !== 'Checkpoint'
+    ) {
+      checkpointAnteriorIndex--
+    }
+
+    // Retorna os "End" entre os dois "Checkpoint"
+    return this.operations.items
+      .slice(checkpointAnteriorIndex + 1, lastCheckpointIndex)
+      .filter((item) => item.operation.type === 'End')
   }
 
   addOperationAtPosition(operation: Operation, index: number) {
@@ -475,7 +514,7 @@ class Logging {
       this.addOperation({
         hidden: true,
         orderID: this.operations.items.length + 1,
-        operation: { type: 'Flush', pageID: page }
+        operation: { type: 'Flush', pageID: page, transactionID: transactionID }
       })
     })
   }
@@ -570,7 +609,7 @@ class Logging {
       }
     })
     console.table(pendingTransactions)
-    return pendingTransactions
+    return pendingTransactions.filter((transaction) => transaction.status === 'Abortada')
 
     // activeTransactions = all active transactions in the transactionTable
     // const activeTransactions = this.transactionTable.items.filter(
