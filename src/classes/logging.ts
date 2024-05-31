@@ -142,7 +142,14 @@ class Logging {
     this.transactionTable = { items: [] }
     this.dirtyPageTable = { items: [] }
     this.operations = {
-      items: []
+      items: [
+        // 5 read operations, 1 for each transaction and pageId
+        { orderID: 1, operation: { type: 'Read', transactionID: 1, pageID: 'A' } },
+        { orderID: 2, operation: { type: 'Read', transactionID: 2, pageID: 'B' } },
+        { orderID: 3, operation: { type: 'Read', transactionID: 3, pageID: 'C' } },
+        { orderID: 4, operation: { type: 'Read', transactionID: 4, pageID: 'D' } },
+        { orderID: 5, operation: { type: 'Read', transactionID: 5, pageID: 'E' } }
+      ]
     }
     this.redoTransactions = []
     this.checkpoint = {
@@ -280,14 +287,13 @@ class Logging {
   }
 
   commit(operation: CommitOperation) {
-    this.log.entries.forEach((entry) => {
-      entry.active = false
-    })
-
     this.transactionTable.items.forEach((transaction) => {
       if (transaction.transactionID === operation.transactionID) {
         transaction.status = 'Consolidada'
       }
+    })
+    this.log.entries.forEach((entry) => {
+      entry.active = false
     })
 
     const lastLSN = this.log.entries
@@ -418,8 +424,7 @@ class Logging {
       `Ao realizar um CheckPoint, uma cópia da tabela de transações é feita.
       Bem como uma cópia da tabela de dados alterados em memória`
     )
-    this.checkpoint.transactionTable = this.clone(this.transactionTable)
-    this.checkpoint.dirtyPageTable = this.clone(this.dirtyPageTable)
+
     // add a log.entry for this checkpoint
     console.log(`E uma entrada do tipo 'Checkpoint' é adicionada ao log.`)
     this.log.entries.push({
@@ -441,6 +446,8 @@ class Logging {
     this.log.entries.forEach((entry) => {
       entry.persisted = true
     })
+    this.checkpoint.transactionTable = this.clone(this.transactionTable)
+    this.checkpoint.dirtyPageTable = this.clone(this.dirtyPageTable)
   }
 
   addOperation(operation: Operation) {
@@ -722,8 +729,7 @@ class Logging {
   }
 
   simulateCacheManagement() {
-    // for each page in this.buffer.pages, check the this.entry.log with LSN = page.pageLSN, if it exists and
-    // the log.entry transaction is in the active transactions, flush the page
+    // TODO: Fazer que em uma operação END os dados da transações sejam flushados
     this.buffer.pages.forEach((page) => {
       const logEntry = this.log.entries.find((entry) => entry.LSN === page.pageLSN)
       if (logEntry) {

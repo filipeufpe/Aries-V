@@ -691,7 +691,7 @@ onUpdated(() => {
           </table>
           <div class="text-slate-50">
             <pre>
-            {{ logging.operations.items }}
+            {{ logging.checkpoint.transactionTable?.items }}
           </pre
             >
           </div>
