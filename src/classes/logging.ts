@@ -156,6 +156,7 @@ class Logging {
     switch (operation.type) {
       case 'Write':
         console.clear()
+        this.simulateCacheManagement()
         this.write(operation)
         break
       case 'Flush':
@@ -172,14 +173,17 @@ class Logging {
         break
       case 'Read':
         console.clear()
+        this.simulateCacheManagement()
         this.read(operation)
         break
       case 'End':
         console.clear()
+        this.simulateCacheManagement()
         this.end(operation)
         break
       case 'Abort':
         console.clear()
+        this.simulateCacheManagement()
         this.abort(operation)
         break
     }
@@ -425,7 +429,15 @@ class Logging {
       pageID: '',
       persisted: false
     })
-    //persist all log entries
+    const transactionsToCommit = this.findEndOperationsSinceLastCheckpoint()
+    transactionsToCommit.forEach((transaction) => {
+      if (transaction !== undefined) {
+        this.commit({
+          type: 'Commit',
+          transactionID: transaction
+        })
+      }
+    })
     this.log.entries.forEach((entry) => {
       entry.persisted = true
     })
@@ -457,7 +469,11 @@ class Logging {
 
     // Se nenhum "Checkpoint" for encontrado, retorna todos os "End"
     if (lastCheckpointIndex < 0) {
-      return this.operations.items.filter((item) => item.operation.type === 'End')
+      return this.operations.items.map((item) => {
+        if (item.operation.type === 'End') {
+          return item.operation.transactionID
+        }
+      })
     }
 
     // Encontra o índice do "Checkpoint" que o precede
@@ -472,7 +488,11 @@ class Logging {
     // Retorna os "End" entre os dois "Checkpoint"
     return this.operations.items
       .slice(checkpointAnteriorIndex + 1, lastCheckpointIndex)
-      .filter((item) => item.operation.type === 'End')
+      .map((item) => {
+        if (item.operation.type === 'End') {
+          return item.operation.transactionID
+        }
+      })
   }
 
   addOperationAtPosition(operation: Operation, index: number) {
@@ -608,7 +628,6 @@ class Logging {
         transaction.status = 'Abortada'
       }
     })
-    console.table(pendingTransactions)
     return pendingTransactions.filter((transaction) => transaction.status === 'Abortada')
 
     // activeTransactions = all active transactions in the transactionTable
@@ -702,6 +721,27 @@ class Logging {
     })
   }
 
+  simulateCacheManagement() {
+    // for each page in this.buffer.pages, check the this.entry.log with LSN = page.pageLSN, if it exists and
+    // the log.entry transaction is in the active transactions, flush the page
+    this.buffer.pages.forEach((page) => {
+      const logEntry = this.log.entries.find((entry) => entry.LSN === page.pageLSN)
+      if (logEntry) {
+        const transaction = this.transactionTable.items.find(
+          (transaction) => transaction.transactionID === logEntry.transactionID
+        )
+        if (transaction?.status === 'Ativa' && Math.random() > 0.5) {
+          console.log(`O dado ${page.pageID} foi alterado em memória e será persistido no disco.`)
+          this.flush({
+            type: 'Flush',
+            pageID: page.pageID,
+            transactionID: logEntry.transactionID || 0
+          })
+        }
+      }
+    })
+  }
+
   simulateCrash() {
     console.log(`
     Uma falha aconteceu. Seja por falha de energia ou outro motivo.
@@ -728,7 +768,7 @@ class Logging {
   }
 
   // Método para recuperação após falha
-  recover() {
+  restart() {
     console.clear()
     // Carrega checkpoint
     this.loadCheckpoint()

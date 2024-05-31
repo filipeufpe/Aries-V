@@ -247,7 +247,7 @@ const resetState = () => {
 
 const startRecover = () => {
   status.value = 'Recover'
-  logging.value.recover()
+  logging.value.restart()
 }
 
 onMounted(() => {
