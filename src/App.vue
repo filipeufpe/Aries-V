@@ -668,6 +668,7 @@ onUpdated(() => {
               >
                 <td class="p-2">
                   <FontAwesomeIcon :icon="faHardDrive" v-if="entry.persisted" />
+                  <FontAwesomeIcon :icon="faMemory" class="animate-pulse text-red-600" v-else />
                 </td>
                 <td class="p-2 text_slate_800">
                   {{ entry.LSN }}

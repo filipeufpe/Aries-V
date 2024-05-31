@@ -343,7 +343,7 @@ class Logging {
       pageID: '',
       persisted: false
     })
-    this.currentOperationIdx++
+    //this.currentOperationIdx++
   }
 
   end(operation: EndOperation) {
