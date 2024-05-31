@@ -167,9 +167,8 @@ class Logging {
         { orderID: 15, operation: { type: 'Write', transactionID: 5, pageID: 'E', value: '52' } },
         { orderID: 16, operation: { type: 'End', transactionID: 1 } },
         { orderID: 17, operation: { type: 'End', transactionID: 2 } },
-        { orderID: 18, operation: { type: 'End', transactionID: 3 } },
-        { orderID: 19, operation: { type: 'End', transactionID: 4 } },
-        { orderID: 20, operation: { type: 'End', transactionID: 5 } }
+        { orderID: 18, operation: { type: 'Abort', transactionID: 3 } },
+        { orderID: 19, operation: { type: 'Abort', transactionID: 4 } }
       ]
     }
     this.redoTransactions = []
@@ -825,8 +824,8 @@ class Logging {
   }
 
   showMessage() {
-    console.log(`Mensagem: ${this.message.text}`)
     this.message.enabled = true
+    console.log(this.message.enabled)
   }
 
   clearMessage() {

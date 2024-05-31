@@ -414,7 +414,7 @@ onUpdated(() => {
                 <FontAwesomeIcon :icon="faDownload" />
               </button>
             </div> -->
-            <div class="flex items-center space-x-2 pb-2">
+            <div class="flex items-center space-x-2 pb-2" v-show="false">
               <input
                 id="commit"
                 v-model="formCommitTransaction"
