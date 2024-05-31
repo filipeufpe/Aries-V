@@ -148,27 +148,58 @@ class Logging {
     this.dirtyPageTable = { items: [] }
     this.operations = {
       items: [
-        // 5 read operations, 1 for each transaction and pageId
-        { orderID: 1, operation: { type: 'Read', transactionID: 1, pageID: 'A' } },
-        { orderID: 2, operation: { type: 'Read', transactionID: 2, pageID: 'B' } },
-        { orderID: 3, operation: { type: 'Read', transactionID: 3, pageID: 'C' } },
-        { orderID: 4, operation: { type: 'Read', transactionID: 4, pageID: 'D' } },
-        { orderID: 5, operation: { type: 'Read', transactionID: 5, pageID: 'E' } },
-        //add 10 write operations
-        { orderID: 6, operation: { type: 'Write', transactionID: 1, pageID: 'A', value: '11' } },
-        { orderID: 7, operation: { type: 'Write', transactionID: 2, pageID: 'B', value: '21' } },
-        { orderID: 8, operation: { type: 'Write', transactionID: 3, pageID: 'C', value: '31' } },
-        { orderID: 9, operation: { type: 'Write', transactionID: 4, pageID: 'D', value: '41' } },
-        { orderID: 10, operation: { type: 'Write', transactionID: 5, pageID: 'E', value: '51' } },
-        { orderID: 11, operation: { type: 'Write', transactionID: 1, pageID: 'A', value: '12' } },
-        { orderID: 12, operation: { type: 'Write', transactionID: 2, pageID: 'B', value: '22' } },
-        { orderID: 13, operation: { type: 'Write', transactionID: 3, pageID: 'C', value: '32' } },
-        { orderID: 14, operation: { type: 'Write', transactionID: 4, pageID: 'D', value: '42' } },
-        { orderID: 15, operation: { type: 'Write', transactionID: 5, pageID: 'E', value: '52' } },
-        { orderID: 16, operation: { type: 'End', transactionID: 1 } },
-        { orderID: 17, operation: { type: 'End', transactionID: 2 } },
-        { orderID: 18, operation: { type: 'Abort', transactionID: 3 } },
-        { orderID: 19, operation: { type: 'Abort', transactionID: 4 } }
+        // 1 read E
+        { hidden: false, orderID: 1, operation: { type: 'Read', transactionID: 1, pageID: 'E' } },
+        // 2 read C
+        { hidden: false, orderID: 2, operation: { type: 'Read', transactionID: 2, pageID: 'C' } },
+        // 3 read A
+        { hidden: false, orderID: 3, operation: { type: 'Read', transactionID: 3, pageID: 'A' } },
+        // 1 write E 100
+        {
+          hidden: false,
+          orderID: 4,
+          operation: { type: 'Write', transactionID: 1, pageID: 'E', value: '100' }
+        },
+        // 3 read B
+        { hidden: false, orderID: 5, operation: { type: 'Read', transactionID: 3, pageID: 'B' } },
+        // 2 write C 200
+        {
+          hidden: false,
+          orderID: 6,
+          operation: { type: 'Write', transactionID: 2, pageID: 'C', value: '200' }
+        },
+        // end 1
+        { hidden: false, orderID: 7, operation: { type: 'End', transactionID: 1 } },
+        // 4 read D
+        { hidden: false, orderID: 8, operation: { type: 'Read', transactionID: 4, pageID: 'D' } },
+        // 4 write D 300
+        {
+          hidden: false,
+          orderID: 9,
+          operation: { type: 'Write', transactionID: 4, pageID: 'D', value: '300' }
+        },
+        // end 4
+        { hidden: false, orderID: 10, operation: { type: 'End', transactionID: 4 } },
+        // abort 3
+        { hidden: false, orderID: 11, operation: { type: 'Abort', transactionID: 3 } },
+        // checkpoint
+        { hidden: false, orderID: 12, operation: { type: 'Checkpoint' } },
+        // 5 read e
+        { hidden: false, orderID: 13, operation: { type: 'Read', transactionID: 5, pageID: 'E' } },
+        // 6 read d
+        { hidden: false, orderID: 14, operation: { type: 'Read', transactionID: 6, pageID: 'D' } },
+        // 5 write e 400
+        {
+          hidden: false,
+          orderID: 15,
+          operation: { type: 'Write', transactionID: 5, pageID: 'E', value: '400' }
+        },
+        // 6 write d 500
+        {
+          hidden: false,
+          orderID: 16,
+          operation: { type: 'Write', transactionID: 6, pageID: 'D', value: '500' }
+        }
       ]
     }
     this.redoTransactions = []
@@ -762,6 +793,7 @@ class Logging {
       }
     })
     this.showMessage()
+    this.clearMessage()
   }
 
   simulateCrash() {
@@ -825,7 +857,6 @@ class Logging {
 
   showMessage() {
     this.message.enabled = true
-    console.log(this.message.enabled)
   }
 
   clearMessage() {

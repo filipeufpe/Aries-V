@@ -480,7 +480,7 @@ onUpdated(() => {
       <div id="TransacoesAtivas" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">
-            <FontAwesomeIcon :icon="faMemory" class="pr-2" />Transações
+            <FontAwesomeIcon :icon="faHardDrive" class="pr-2" />Transações
             <span class="text-yellow-300">Ativas</span>
           </h2>
           <table class="w-full">
@@ -512,7 +512,7 @@ onUpdated(() => {
       <div id="TransacoesConsolidadas" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">
-            <FontAwesomeIcon :icon="faMemory" class="pr-2" />Transações
+            <FontAwesomeIcon :icon="faHardDrive" class="pr-2" />Transações
             <span class="text-green-300">Consolidadas</span>
           </h2>
           <table class="w-full">
@@ -544,7 +544,7 @@ onUpdated(() => {
       <div id="TransacoesAbortadas" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">
-            <FontAwesomeIcon :icon="faMemory" class="pr-2" />Transações
+            <FontAwesomeIcon :icon="faHardDrive" class="pr-2" />Transações
             <span class="text-red-400">Abortadas</span>
           </h2>
           <table class="w-full">
@@ -576,7 +576,7 @@ onUpdated(() => {
       <div id="Buffer" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">
-            <FontAwesomeIcon :icon="faMemory" class="pr-2" />Buffer
+            <FontAwesomeIcon :icon="faMemory" class="pr-2 animate-pulse" />Buffer
           </h2>
           <table class="w-full">
             <thead>
