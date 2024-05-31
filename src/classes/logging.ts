@@ -125,6 +125,11 @@ class Logging {
   checkpoint: Checkpoint
   operations: Operations
   redoTransactions: TransactionTableItem[]
+  message: {
+    enabled: boolean
+    type: string
+    text: string
+  }
 
   constructor() {
     this.currentOperationIdx = 0
@@ -148,7 +153,23 @@ class Logging {
         { orderID: 2, operation: { type: 'Read', transactionID: 2, pageID: 'B' } },
         { orderID: 3, operation: { type: 'Read', transactionID: 3, pageID: 'C' } },
         { orderID: 4, operation: { type: 'Read', transactionID: 4, pageID: 'D' } },
-        { orderID: 5, operation: { type: 'Read', transactionID: 5, pageID: 'E' } }
+        { orderID: 5, operation: { type: 'Read', transactionID: 5, pageID: 'E' } },
+        //add 10 write operations
+        { orderID: 6, operation: { type: 'Write', transactionID: 1, pageID: 'A', value: '11' } },
+        { orderID: 7, operation: { type: 'Write', transactionID: 2, pageID: 'B', value: '21' } },
+        { orderID: 8, operation: { type: 'Write', transactionID: 3, pageID: 'C', value: '31' } },
+        { orderID: 9, operation: { type: 'Write', transactionID: 4, pageID: 'D', value: '41' } },
+        { orderID: 10, operation: { type: 'Write', transactionID: 5, pageID: 'E', value: '51' } },
+        { orderID: 11, operation: { type: 'Write', transactionID: 1, pageID: 'A', value: '12' } },
+        { orderID: 12, operation: { type: 'Write', transactionID: 2, pageID: 'B', value: '22' } },
+        { orderID: 13, operation: { type: 'Write', transactionID: 3, pageID: 'C', value: '32' } },
+        { orderID: 14, operation: { type: 'Write', transactionID: 4, pageID: 'D', value: '42' } },
+        { orderID: 15, operation: { type: 'Write', transactionID: 5, pageID: 'E', value: '52' } },
+        { orderID: 16, operation: { type: 'End', transactionID: 1 } },
+        { orderID: 17, operation: { type: 'End', transactionID: 2 } },
+        { orderID: 18, operation: { type: 'End', transactionID: 3 } },
+        { orderID: 19, operation: { type: 'End', transactionID: 4 } },
+        { orderID: 20, operation: { type: 'End', transactionID: 5 } }
       ]
     }
     this.redoTransactions = []
@@ -156,6 +177,11 @@ class Logging {
       transactionTable: null,
       dirtyPageTable: null,
       nextLSN: 0
+    }
+    this.message = {
+      enabled: false,
+      type: '',
+      text: ''
     }
   }
 
@@ -636,35 +662,6 @@ class Logging {
       }
     })
     return pendingTransactions.filter((transaction) => transaction.status === 'Abortada')
-
-    // activeTransactions = all active transactions in the transactionTable
-    // const activeTransactions = this.transactionTable.items.filter(
-    //   (transaction) => transaction.status === 'Ativa'
-    // )
-
-    // // search in log.entries for transactions that have a start but not an end and return their transactionID
-    // const pendingTransactions = this.log.entries
-    //   .filter((entry) => entry.type === 'Start')
-    //   .map((entry) => entry.transactionID)
-    //   .filter(
-    //     (transactionID) =>
-    //       this.log.entries.filter(
-    //         (entry) => entry.transactionID === transactionID && entry.type === 'End'
-    //       ).length === 0
-    //   )
-
-    //   // for each transaction in pendingTransactions, build a transactionTableItem
-    //   .map((transactionID) => {
-    //     return {
-    //       transactionID,
-    //       status: 'Pendente',
-    //       lastLSN: this.log.entries
-    //         .filter((entry) => entry.transactionID === transactionID)
-    //         .map((entry) => entry.LSN)
-    //         .slice(-1)[0]
-    //     }
-    //   }) as TransactionTableItem[]
-    // return [...activeTransactions, ...pendingTransactions]
   }
 
   getTransactionEntries(transactionID: number): LogEntry[] {
@@ -728,8 +725,26 @@ class Logging {
     })
   }
 
-  simulateCacheManagement() {
-    // TODO: Fazer que em uma operação END os dados da transações sejam flushados
+  simulateCacheManagement(): void {
+    const currOp = this.operations.items[this.currentOperationIdx].operation
+    if (this.isEndOperation(currOp)) {
+      this.operations.items.forEach((op) => {
+        if (this.isWriteOperation(op.operation)) {
+          if (op.operation.transactionID === currOp.transactionID) {
+            this.appendMessage(
+              `O Gerenciador de Cache gravou o dado ${op.operation.pageID} no disco.\n`
+            )
+            this.flush({
+              type: 'Flush',
+              pageID: op.operation.pageID,
+              transactionID: op.operation.transactionID
+            })
+          }
+        }
+      })
+      this.showMessage()
+    }
+
     this.buffer.pages.forEach((page) => {
       const logEntry = this.log.entries.find((entry) => entry.LSN === page.pageLSN)
       if (logEntry) {
@@ -738,6 +753,7 @@ class Logging {
         )
         if (transaction?.status === 'Ativa' && Math.random() > 0.5) {
           console.log(`O dado ${page.pageID} foi alterado em memória e será persistido no disco.`)
+          this.appendMessage(`O gerenciador de Cache gravou o dado ${page.pageID} no disco.\n`)
           this.flush({
             type: 'Flush',
             pageID: page.pageID,
@@ -746,6 +762,7 @@ class Logging {
         }
       }
     })
+    this.showMessage()
   }
 
   simulateCrash() {
@@ -786,6 +803,35 @@ class Logging {
       `Por fim, quando nenhuma das operações de escrita das transações abortadas precisa ser desfeita,
        a recuperação é finalizada.`
     )
+  }
+
+  isEndOperation(operation: OperationTypes): operation is EndOperation {
+    return operation.type === 'End'
+  }
+
+  isWriteOperation(operation: OperationTypes): operation is WriteOperation {
+    return operation.type === 'Write'
+  }
+
+  setMessage(message: string, tipo?: string) {
+    if (tipo) {
+      this.message.type = tipo
+    }
+    this.message.text = message
+  }
+
+  appendMessage(message: string) {
+    this.message.text += message
+  }
+
+  showMessage() {
+    console.log(`Mensagem: ${this.message.text}`)
+    this.message.enabled = true
+  }
+
+  clearMessage() {
+    this.message.enabled = false
+    this.message.text = ''
   }
 }
 export default Logging

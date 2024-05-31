@@ -265,11 +265,15 @@ onUpdated(() => {
     toast.error('Crash')
     status.value = 'preRecovery'
   }
+  if (logging.value.message.enabled && logging.value.message.type === 'Info') {
+    toast.info(logging.value.message.text)
+    logging.value.message.enabled = false
+  }
 })
 </script>
 
 <template>
-  <div id="container" class="flex flex-row h-fit" @keyup.right="executeOperation()">
+  <div id="container" class="flex flex-row h-fit">
     <div id="Operations" class="basis-1/5 bg-slate-800 h-full">
       <div class="bg-slate-800 h-full p-2">
         <div class="bg-gray-700 rounded-lg shadow-lg p-2">
