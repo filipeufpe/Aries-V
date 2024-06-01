@@ -126,22 +126,22 @@ const abortButtonDisabled = computed(() => {
 //   )
 // })
 
-const commitButtonDisabled = computed(() => {
-  return (
-    formCommitTransaction.value === '' ||
-    formCommitTransaction.value.split(' ').length < 1 ||
-    formCommitTransaction.value.split(' ')[0] === '' ||
-    formCommitTransaction.value.split(' ').length > 1 ||
-    isNaN(parseInt(formCommitTransaction.value)) ||
-    !logging.value.operations.items.some((e) => {
-      if (e.operation.type === 'End') {
-        return e.operation?.transactionID === parseInt(formCommitTransaction.value)
-      } else {
-        return false
-      }
-    })
-  )
-})
+// const commitButtonDisabled = computed(() => {
+//   return (
+//     formCommitTransaction.value === '' ||
+//     formCommitTransaction.value.split(' ').length < 1 ||
+//     formCommitTransaction.value.split(' ')[0] === '' ||
+//     formCommitTransaction.value.split(' ').length > 1 ||
+//     isNaN(parseInt(formCommitTransaction.value)) ||
+//     !logging.value.operations.items.some((e) => {
+//       if (e.operation.type === 'End') {
+//         return e.operation?.transactionID === parseInt(formCommitTransaction.value)
+//       } else {
+//         return false
+//       }
+//     })
+//   )
+// })
 
 //propriedades computadas
 
@@ -198,15 +198,15 @@ const formatedReadTransaction = computed((): Operation => {
   }
 })
 
-const formatedCommitTransaction = computed((): Operation => {
-  return {
-    orderID: logging.value.operations.items.length + 1,
-    operation: {
-      type: 'Commit',
-      transactionID: parseInt(formCommitTransaction.value.split(' ')[0])
-    }
-  }
-})
+// const formatedCommitTransaction = computed((): Operation => {
+//   return {
+//     orderID: logging.value.operations.items.length + 1,
+//     operation: {
+//       type: 'Commit',
+//       transactionID: parseInt(formCommitTransaction.value.split(' ')[0])
+//     }
+//   }
+// })
 
 const formatedCheckpoint = computed((): Operation => {
   return {
@@ -280,70 +280,121 @@ onUpdated(() => {
         <div class="bg-gray-700 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50 flex items-center space-x-2">
             Operações&nbsp;
-            <button class="rounded-full bg-blue-500 w-9 h-9 flex items-center justify-center" @click="showModal = true">
+            <button
+              class="rounded-full bg-blue-500 w-9 h-9 flex items-center justify-center"
+              @click="showModal = true"
+            >
               <FontAwesomeIcon :icon="faCircleQuestion" class="text-s" />
             </button>
           </h2>
           <div class="flex items-center space-x-2 py-5">
-            <button class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2" @click="resetState()">
+            <button
+              class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2"
+              @click="resetState()"
+            >
               <FontAwesomeIcon :icon="faRotateLeft" />
             </button>
-            <button class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2" @click="() => {
-              logging.simulateCrash()
-              status = 'crash'
-            }
-              ">
+            <button
+              class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2"
+              @click="
+                () => {
+                  logging.simulateCrash()
+                  status = 'crash'
+                }
+              "
+            >
               <FontAwesomeIcon :icon="faTriangleExclamation" />
             </button>
-            <button v-show="status === 'normal'"
-              class="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2" :class="{
+            <button
+              v-show="status === 'normal'"
+              class="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2"
+              :class="{
                 'opacity-50 cursor-not-allowed':
                   logging.operations.items.length === 0 ||
                   logging.currentOperationIdx >= logging.operations.items.length
-              }" :disabled="logging.operations.items.length === 0 ||
+              }"
+              :disabled="
+                logging.operations.items.length === 0 ||
                 logging.currentOperationIdx >= logging.operations.items.length
-                " @click="executeOperation()">
+              "
+              @click="executeOperation()"
+            >
               <FontAwesomeIcon :icon="faForward" />
             </button>
-            <button v-show="status === 'preRecovery' || status === 'crash'"
-              class="flex-1 bg-green-500 hover:bg-green-600 text-white rounded-lg px-4 py-2" @click="startRecover()">
+            <button
+              v-show="status === 'preRecovery' || status === 'crash'"
+              class="flex-1 bg-green-500 hover:bg-green-600 text-white rounded-lg px-4 py-2"
+              @click="startRecover()"
+            >
               <FontAwesomeIcon :icon="faScrewdriverWrench" />
             </button>
           </div>
           <div>
             <div class="flex items-center space-x-2 pb-2">
-              <input id="read" v-model="formReadTransaction" type="text"
-                class="border border-gray-300 rounded-lg px-4 py-2 w-full" placeholder="READ T D" />
-              <button class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-                :class="{ 'opacity-50 cursor-not-allowed': readButtonDisabled }" :disabled="readButtonDisabled"
-                @click="addOperation(formatedReadTransaction)">
+              <input
+                id="read"
+                v-model="formReadTransaction"
+                type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2 w-full"
+                placeholder="READ T D"
+              />
+              <button
+                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': readButtonDisabled }"
+                :disabled="readButtonDisabled"
+                @click="addOperation(formatedReadTransaction)"
+              >
                 <FontAwesomeIcon :icon="faUpload" />
               </button>
             </div>
             <div class="flex items-center space-x-2 pb-2">
-              <input id="write" v-model="formWriteTransaction" type="text"
-                class="border border-gray-300 rounded-lg px-4 py-2 w-full" placeholder="WRITE T D V" />
-              <button class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-                :class="{ 'opacity-50 cursor-not-allowed': writeButtonDisabled }" :disabled="writeButtonDisabled"
-                @click="addOperation(formatedTransaction)">
+              <input
+                id="write"
+                v-model="formWriteTransaction"
+                type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2 w-full"
+                placeholder="WRITE T D V"
+              />
+              <button
+                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': writeButtonDisabled }"
+                :disabled="writeButtonDisabled"
+                @click="addOperation(formatedTransaction)"
+              >
                 <FontAwesomeIcon :icon="faFilePen" />
               </button>
             </div>
             <div class="flex items-center space-x-2 pb-2">
-              <input id="end" v-model="formEndTransaction" type="text"
-                class="border border-gray-300 rounded-lg px-4 py-2 w-full" placeholder="END T" />
-              <button class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-                :class="{ 'opacity-50 cursor-not-allowed': endButtonDisabled }" :disabled="endButtonDisabled"
-                @click="addOperation(formatedEndTransaction)">
+              <input
+                id="end"
+                v-model="formEndTransaction"
+                type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2 w-full"
+                placeholder="END T"
+              />
+              <button
+                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': endButtonDisabled }"
+                :disabled="endButtonDisabled"
+                @click="addOperation(formatedEndTransaction)"
+              >
                 <FontAwesomeIcon :icon="faStop" />
               </button>
             </div>
             <div class="flex items-center space-x-2 pb-2">
-              <input id="abort" v-model="formAbortTransaction" type="text"
-                class="border border-gray-300 rounded-lg px-4 py-2 w-full" placeholder="ABORT T" />
-              <button class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-                :class="{ 'opacity-50 cursor-not-allowed': abortButtonDisabled }" :disabled="abortButtonDisabled"
-                @click="addOperation(formatedAbortTransaction)">
+              <input
+                id="abort"
+                v-model="formAbortTransaction"
+                type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2 w-full"
+                placeholder="ABORT T"
+              />
+              <button
+                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': abortButtonDisabled }"
+                :disabled="abortButtonDisabled"
+                @click="addOperation(formatedAbortTransaction)"
+              >
                 <FontAwesomeIcon :icon="faBan" />
               </button>
             </div>
@@ -351,8 +402,10 @@ onUpdated(() => {
               <div class="border border-gray-300 rounded-lg px-4 py-2 bg-white w-full pr-4">
                 <span>Checkpoint</span>
               </div>
-              <button class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-                @click="addOperation(formatedCheckpoint)">
+              <button
+                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                @click="addOperation(formatedCheckpoint)"
+              >
                 <FontAwesomeIcon :icon="faFlag" />
               </button>
             </div>
@@ -360,9 +413,15 @@ onUpdated(() => {
           <div class="py-2">
             <ul class="mb-1 text-slate-200">
               <!-- List of elements -->
-              <li class="flex items-center space-x-2 border rounded border-slate-600 mb-1 p-2"
-                v-for="(item, index) in logging.operations.items" v-show="!item.hidden" :key="item.orderID">
-                <div :class="logging.currentOperationIdx > index ? 'text-slate-500' : 'text-slate-200'">
+              <li
+                class="flex items-center space-x-2 border rounded border-slate-600 mb-1 p-2"
+                v-for="(item, index) in logging.operations.items"
+                v-show="!item.hidden"
+                :key="item.orderID"
+              >
+                <div
+                  :class="logging.currentOperationIdx > index ? 'text-slate-500' : 'text-slate-200'"
+                >
                   <span v-if="'transactionID' in item.operation">
                     T_{{ item.operation.transactionID }}
                   </span>
@@ -456,10 +515,16 @@ onUpdated(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="transaction in logging.transactionTable.items.filter(
-                    (i) => i.status === 'Ativa'
-                  )" :key="transaction.transactionID" class="bg-slate-50">
-                    <td class="p-1 bg-yellow-100 text_slate_800">{{ transaction.transactionID }}</td>
+                  <tr
+                    v-for="transaction in logging.transactionTable.items.filter(
+                      (i) => i.status === 'Ativa'
+                    )"
+                    :key="transaction.transactionID"
+                    class="bg-slate-50"
+                  >
+                    <td class="p-1 bg-yellow-100 text_slate_800">
+                      {{ transaction.transactionID }}
+                    </td>
                     <td class="p-1 bg-yellow-100 text_slate_800">{{ transaction.status }}</td>
                     <td class="p-1 bg-yellow-100 text_slate_800">
                       {{ transaction.lastLSN }}
@@ -472,9 +537,7 @@ onUpdated(() => {
               <table class="w-full">
                 <thead>
                   <tr>
-                    <th colspan="3" class="bg-green-300 text-slate-800">
-                      CONSOLIDADAS
-                    </th>
+                    <th colspan="3" class="bg-green-300 text-slate-800">CONSOLIDADAS</th>
                   </tr>
                   <tr>
                     <th class="text-left bg-green-800 p-2 text-slate-50">T</th>
@@ -483,9 +546,13 @@ onUpdated(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="transaction in logging.transactionTable.items.filter(
-                    (i) => i.status === 'Consolidada'
-                  )" :key="transaction.transactionID" class="bg-slate-50">
+                  <tr
+                    v-for="transaction in logging.transactionTable.items.filter(
+                      (i) => i.status === 'Consolidada'
+                    )"
+                    :key="transaction.transactionID"
+                    class="bg-slate-50"
+                  >
                     <td class="p-1 bg-green-200 text_slate_800">{{ transaction.transactionID }}</td>
                     <td class="p-1 bg-green-200 text_slate_800">{{ transaction.status }}</td>
                     <td class="p-1 bg-green-200 text_slate_800">
@@ -499,9 +566,7 @@ onUpdated(() => {
               <table class="w-full">
                 <thead>
                   <tr>
-                    <th colspan="3" class="bg-red-300">
-                      Abortadas
-                    </th>
+                    <th colspan="3" class="bg-red-300">Abortadas</th>
                   </tr>
                   <tr>
                     <th class="text-left bg-red-800 p-2 text-slate-50">T</th>
@@ -510,9 +575,13 @@ onUpdated(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="transaction in logging.transactionTable.items.filter(
-                    (i) => i.status === 'Abortada'
-                  )" :key="transaction.transactionID" class="bg-slate-50">
+                  <tr
+                    v-for="transaction in logging.transactionTable.items.filter(
+                      (i) => i.status === 'Abortada'
+                    )"
+                    :key="transaction.transactionID"
+                    class="bg-slate-50"
+                  >
                     <td class="p-1 bg-red-100 text_slate_800">{{ transaction.transactionID }}</td>
                     <td class="p-1 bg-red-100 text_slate_800">{{ transaction.status }}</td>
                     <td class="p-1 bg-red-100 text_slate_800">
@@ -567,10 +636,17 @@ onUpdated(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="entry in logging.log.entries" :key="entry.LSN"
-                :class="entry.active ? 'bg-green-200' : 'bg-slate-50'">
+              <tr
+                v-for="entry in logging.log.entries"
+                :key="entry.LSN"
+                :class="entry.active ? 'bg-green-200' : 'bg-slate-50'"
+              >
                 <td class="p-1">
-                  <FontAwesomeIcon :icon="faHardDrive" class="text-green-600" v-if="entry.persisted" />
+                  <FontAwesomeIcon
+                    :icon="faHardDrive"
+                    class="text-green-600"
+                    v-if="entry.persisted"
+                  />
                   <FontAwesomeIcon :icon="faMemory" class="animate-pulse text-red-600" v-else />
                 </td>
                 <td class="p-1 text_slate_800">
@@ -725,7 +801,10 @@ onUpdated(() => {
         </table>
       </div>
       <div class="flex justify-end space-x-2">
-        <button @click="showModal = false" class="bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2">
+        <button
+          @click="showModal = false"
+          class="bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2"
+        >
           Fechar
         </button>
       </div>
