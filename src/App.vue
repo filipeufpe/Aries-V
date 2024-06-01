@@ -460,10 +460,14 @@ onUpdated(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="page in logging.disk.pages" :key="page.pageID">
-                    <td class="p-1 bg-slate-50 text_slate_800">{{ page.pageID }}</td>
-                    <td class="p-1 bg-slate-50 text_slate_800">{{ page.value }}</td>
-                    <td class="p-1 bg-slate-50 text_slate_800">{{ page.pageLSN }}</td>
+                  <tr
+                    v-for="page in logging.disk.pages"
+                    :key="page.pageID"
+                    :class="page.pageLSN ? 'bg-yellow-100' : 'bg-slate-50'"
+                  >
+                    <td class="p-1 text_slate_800">{{ page.pageID }}</td>
+                    <td class="p-1 text_slate_800">{{ page.value }}</td>
+                    <td class="p-1 text_slate_800">{{ page.pageLSN }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -688,22 +692,14 @@ onUpdated(() => {
       <h2 class="text-xl font-bold mb-4 text-slate-50">Ajuda</h2>
       <div class="text-slate-50 mb-4">
         <p class="pb-2">
-          Este é um simulador de um sistema de recuperação de falhas de um banco de dados utilizando
-          recuperação imediata.
-        </p>
-        <p class="pb-2">
-          Para simular uma falha, pressione a
-          <span class="text-yellow-500 font-black">seta para a direita</span> ou o botão
-          <span class="text-yellow-500 font-black">
-            <FontAwesomeIcon :icon="faForward" />
-          </span>
+          Este é um simulador de um sistema de Mecanismo de Recuperação de Falhas com Atualização
+          Imediata.
         </p>
         <hr class="my-4" />
         <p class="pb-2">
           Para adicionar uma operação, preencha um dos campos de texto e clique no botão
           correspondente.
         </p>
-
         <table class="w-full bg-slate-900">
           <thead>
             <tr>
@@ -774,20 +770,6 @@ onUpdated(() => {
             </tr>
             <tr>
               <td class="p-1 bg-slate-600">
-                <span class="text-yellow-500 font-black">COMMIT</span>
-              </td>
-              <td class="p-1 bg-slate-600">
-                Consolida uma transação. Utilize a notação
-                <span class="text-yellow-500 font-black">T</span>: Transação - Numero.
-              </td>
-              <td class="p-1 bg-slate-600">
-                <button>
-                  <FontAwesomeIcon :icon="faCheckDouble" />
-                </button>
-              </td>
-            </tr>
-            <tr>
-              <td class="p-1 bg-slate-600">
                 <span class="text-yellow-500 font-black">CHECKPOINT</span>
               </td>
               <td class="p-1 bg-slate-600">Insere uma entrada de Checkpoint no log</td>
@@ -799,6 +781,32 @@ onUpdated(() => {
             </tr>
           </tbody>
         </table>
+        <hr class="my-4" />
+        <p class="pb-2">
+          Para simular a execução das operações, pressione a
+          <span class="text-yellow-500 font-black">Seta para a Direita do teclado</span> ou o botão
+          <span class="text-yellow-500 font-black">
+            <FontAwesomeIcon :icon="faForward" />
+          </span>
+        </p>
+        <p class="pb-2">
+          Para simular uma falha, clique no botão
+          <span class="text-yellow-500 font-black">
+            <FontAwesomeIcon :icon="faTriangleExclamation" />
+          </span>
+        </p>
+        <p class="pb-2">
+          Para realizar a recuperação, clique no botão
+          <span class="text-yellow-500 font-black">
+            <FontAwesomeIcon :icon="faScrewdriverWrench" />
+          </span>
+        </p>
+        <p class="pb-2">
+          Para reiniciar a simlução, clique no botão
+          <span class="text-yellow-500 font-black">
+            <FontAwesomeIcon :icon="faRotateLeft" />
+          </span>
+        </p>
       </div>
       <div class="flex justify-end space-x-2">
         <button
