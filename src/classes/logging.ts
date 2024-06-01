@@ -435,56 +435,45 @@ class Logging {
     this.message = {
       enabled: true,
       type: 'Info',
-      text: `Write Ahead Log: Log persistido em Disco com sucesso!`
+      text: `O Gerenciador de Cache foi acionado: Dado ${operation.pageID} gravado em partição de disco.`
     }
-    this.log.entries.forEach((entry) => {
-      entry.persisted = true
-    })
+    const correspondentLogEntry = this.log.entries.find(
+      (entry) =>
+        entry.pageID === operation.pageID &&
+        entry.type === 'write_item' &&
+        entry.transactionID === operation.transactionID
+    )
 
-    setTimeout(() => {
-      this.message = {
-        enabled: true,
-        type: 'Info',
-        text: `O Gerenciador de Cache foi acionado: Dado ${operation.pageID} gravado em partição de disco.`
-      }
-      const correspondentLogEntry = this.log.entries.find(
-        (entry) =>
-          entry.pageID === operation.pageID &&
-          entry.type === 'write_item' &&
-          entry.transactionID === operation.transactionID
-      )
-
-      const currOp = this.getCurrentOperation()
-      if (currOp?.type === 'Flush') {
-        this.currentOperationIdx++
-      }
-      if (currOp?.type === 'Flush') {
-        this.log.entries.forEach((entry) => {
-          entry.active = false
+    const currOp = this.getCurrentOperation()
+    if (currOp?.type === 'Flush') {
+      this.currentOperationIdx++
+    }
+    if (currOp?.type === 'Flush') {
+      this.log.entries.forEach((entry) => {
+        entry.active = false
+      })
+    }
+    const page = this.buffer.pages.find((p) => p.pageID === operation.pageID)
+    if (page) {
+      if (this.disk.pages.filter((p) => p.pageID === operation.pageID).length === 0) {
+        console.log(`O dado ${operation.pageID} não existe no disco, portanto será adicionado.`)
+        this.disk.pages.push(page)
+      } else {
+        // update the page in the disk with pageLSN and page.value
+        console.log(`O dado ${operation.pageID} já existe no disco, portanto será atualizado.`)
+        this.disk.pages.forEach((p) => {
+          if (p.pageID === operation.pageID) {
+            p.pageLSN = correspondentLogEntry?.LSN || null
+            p.value = page.value
+          }
         })
       }
-      const page = this.buffer.pages.find((p) => p.pageID === operation.pageID)
-      if (page) {
-        if (this.disk.pages.filter((p) => p.pageID === operation.pageID).length === 0) {
-          console.log(`O dado ${operation.pageID} não existe no disco, portanto será adicionado.`)
-          this.disk.pages.push(page)
-        } else {
-          // update the page in the disk with pageLSN and page.value
-          console.log(`O dado ${operation.pageID} já existe no disco, portanto será atualizado.`)
-          this.disk.pages.forEach((p) => {
-            if (p.pageID === operation.pageID) {
-              p.pageLSN = correspondentLogEntry?.LSN || null
-              p.value = page.value
-            }
-          })
-        }
 
-        // this.dirtyPageTable.items = this.dirtyPageTable.items.filter(
-        //   (p) => p.pageID !== operation.pageID
-        // )
-        this.buffer.pages = this.buffer.pages.filter((p) => p.pageID !== operation.pageID)
-      }
-    }, 2000)
+      // this.dirtyPageTable.items = this.dirtyPageTable.items.filter(
+      //   (p) => p.pageID !== operation.pageID
+      // )
+      this.buffer.pages = this.buffer.pages.filter((p) => p.pageID !== operation.pageID)
+    }
   }
 
   setCheckpoint() {
@@ -781,20 +770,36 @@ class Logging {
     if (this.isEndOperation(currOp)) {
       this.operations.items.forEach((op) => {
         if (this.isWriteOperation(op.operation)) {
-          if (op.operation.transactionID === currOp.transactionID) {
-            this.newLogEntry({
-              type: 'Flush',
-              pageID: op.operation.pageID,
-              transactionID: op.operation.transactionID
+          const localOp: WriteOperation = op.operation
+          if (
+            localOp.transactionID === currOp.transactionID &&
+            this.buffer.pages.some((page) => page.pageID === localOp.pageID)
+          ) {
+            this.message = {
+              enabled: true,
+              type: 'Info',
+              text: `Write Ahead Log: Log persistido em Disco com sucesso!`
+            }
+            this.log.entries.forEach((entry) => {
+              entry.persisted = true
             })
-            // this.flush({
-            //   type: 'Flush',
-            //   pageID: op.operation.pageID,
-            //   transactionID: op.operation.transactionID
-            // })
+
+            this.addOperationAtPosition(
+              {
+                orderID: this.currentOperationIdx + 1,
+                hidden: true,
+                operation: {
+                  type: 'Flush',
+                  pageID: op.operation.pageID,
+                  transactionID: op.operation.transactionID
+                }
+              },
+              this.currentOperationIdx + 1
+            )
           }
         }
       })
+      this.log.entries.forEach((entry) => (entry.persisted = true))
     }
 
     this.buffer.pages.forEach((page) => {
@@ -806,7 +811,15 @@ class Logging {
         if (transaction?.status === 'Ativa' && Math.random() > 0.5) {
           console.log(`O dado ${page.pageID} foi alterado em memória e será persistido no disco.`)
 
-          // envio Agendado
+          this.message = {
+            enabled: true,
+            type: 'Info',
+            text: `Write Ahead Log: Log persistido em Disco com sucesso!`
+          }
+          this.log.entries.forEach((entry) => {
+            entry.persisted = true
+          })
+
           this.addOperationAtPosition(
             {
               hidden: true,
