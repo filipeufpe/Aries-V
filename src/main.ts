@@ -11,7 +11,7 @@ const app = createApp(App)
 
 app.use(createPinia())
 app.use(Vue3Toastify, {
-  autoClose: 3000,
+  autoClose: 4000,
   position: 'top-center',
   theme: 'colored'
 } as ToastContainerOptions)
