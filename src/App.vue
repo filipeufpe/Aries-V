@@ -5,7 +5,7 @@ import {
   faForward,
   faFilePen,
   // faDownload,
-  faCheckDouble,
+  //faCheckDouble,
   faFlag,
   faUpload,
   faHardDrive,
@@ -373,7 +373,7 @@ onUpdated(() => {
                 placeholder="END T"
               />
               <button
-                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-5 py-2"
                 :class="{ 'opacity-50 cursor-not-allowed': endButtonDisabled }"
                 :disabled="endButtonDisabled"
                 @click="addOperation(formatedEndTransaction)"
@@ -451,7 +451,7 @@ onUpdated(() => {
               <h2 class="text-xl font-bold mb-1 text-slate-50">
                 <FontAwesomeIcon :icon="faHardDrive" class="pr-2" />Disco
               </h2>
-              <table class="w-full">
+              <table class="w-full rounded">
                 <thead>
                   <tr>
                     <th class="text-left bg-slate-800 p-2 text-slate-50">X</th>

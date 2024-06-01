@@ -157,58 +157,11 @@ class Logging {
     this.dirtyPageTable = { items: [] }
     this.operations = {
       items: [
-        // 1 read E
-        { hidden: false, orderID: 1, operation: { type: 'Read', transactionID: 1, pageID: 'E' } },
-        // 2 read C
-        { hidden: false, orderID: 2, operation: { type: 'Read', transactionID: 2, pageID: 'C' } },
-        // 3 read A
-        { hidden: false, orderID: 3, operation: { type: 'Read', transactionID: 3, pageID: 'A' } },
-        // 1 write E 100
-        {
-          hidden: false,
-          orderID: 4,
-          operation: { type: 'Write', transactionID: 1, pageID: 'E', value: '100' }
-        },
-        // 3 read B
-        { hidden: false, orderID: 5, operation: { type: 'Read', transactionID: 3, pageID: 'B' } },
-        // 2 write C 200
-        {
-          hidden: false,
-          orderID: 6,
-          operation: { type: 'Write', transactionID: 2, pageID: 'C', value: '200' }
-        },
-        // end 1
-        { hidden: false, orderID: 7, operation: { type: 'End', transactionID: 1 } },
-        // 4 read D
-        { hidden: false, orderID: 8, operation: { type: 'Read', transactionID: 4, pageID: 'D' } },
-        // 4 write D 300
-        {
-          hidden: false,
-          orderID: 9,
-          operation: { type: 'Write', transactionID: 4, pageID: 'D', value: '300' }
-        },
-        // end 4
-        { hidden: false, orderID: 10, operation: { type: 'End', transactionID: 4 } },
-        // abort 3
-        { hidden: false, orderID: 11, operation: { type: 'Abort', transactionID: 3 } },
-        // checkpoint
-        { hidden: false, orderID: 12, operation: { type: 'Checkpoint' } },
-        // 5 read e
-        { hidden: false, orderID: 13, operation: { type: 'Read', transactionID: 5, pageID: 'E' } },
-        // 6 read d
-        { hidden: false, orderID: 14, operation: { type: 'Read', transactionID: 6, pageID: 'D' } },
-        // 5 write e 400
-        {
-          hidden: false,
-          orderID: 15,
-          operation: { type: 'Write', transactionID: 5, pageID: 'E', value: '400' }
-        },
-        // 6 write d 500
-        {
-          hidden: false,
-          orderID: 16,
-          operation: { type: 'Write', transactionID: 6, pageID: 'D', value: '500' }
-        }
+        { orderID: 1, operation: { type: 'Read', pageID: 'A', transactionID: 1 } },
+        { orderID: 2, operation: { type: 'Write', pageID: 'A', transactionID: 1, value: '100' } },
+        { orderID: 3, operation: { type: 'Checkpoint' } },
+        { orderID: 4, operation: { type: 'End', transactionID: 1 } },
+        { orderID: 5, operation: { type: 'Checkpoint' } }
       ]
     }
     this.redoTransactions = []
@@ -250,12 +203,10 @@ class Logging {
         break
       case 'End':
         console.clear()
-        this.simulateCacheManagement()
         this.end(operation)
         break
       case 'Abort':
         console.clear()
-        this.simulateCacheManagement()
         this.abort(operation)
         break
       case 'CLR':
@@ -390,6 +341,7 @@ class Logging {
   }
 
   end(operation: EndOperation) {
+    this.simulateCacheManagement()
     this.log.entries.forEach((entry) => {
       entry.active = false
     })
@@ -477,7 +429,6 @@ class Logging {
   }
 
   setCheckpoint() {
-    // set all log entries to be inactive
     const currOp = this.getCurrentOperation()
     if (currOp?.type === 'Checkpoint') {
       this.log.entries.forEach((entry) => {
@@ -530,42 +481,32 @@ class Logging {
     }
   }
 
-  findEndOperationsSinceLastCheckpoint() {
-    // Encontra o índice do último "Checkpoint"
-    let lastCheckpointIndex = this.operations.items.length - 1
-    while (
-      lastCheckpointIndex >= 0 &&
-      this.operations.items[lastCheckpointIndex].operation.type !== 'Checkpoint'
-    ) {
-      lastCheckpointIndex--
+  findEndOperationsSinceLastCheckpoint(): number[] {
+    const checkpointIndices: number[] = []
+    this.log.entries.forEach((entry, idx) => {
+      if (entry.type === 'Checkpoint') {
+        checkpointIndices.push(idx)
+      }
+    })
+    let endTransactionLogEntries: LogEntry[] = []
+    if (checkpointIndices.length === 0) {
+      endTransactionLogEntries = this.log.entries.filter((entry) => entry.type === 'End')
+    } else if (checkpointIndices.length === 1) {
+      endTransactionLogEntries = this.log.entries.filter(
+        (entry, index) => index < checkpointIndices[0] && entry.type === 'End'
+      )
+    } else {
+      endTransactionLogEntries = this.log.entries.filter(
+        (entry, index) =>
+          index < checkpointIndices[checkpointIndices.length - 1] &&
+          index > checkpointIndices[checkpointIndices.length - 2] &&
+          entry.type === 'End'
+      )
     }
-
-    // Se nenhum "Checkpoint" for encontrado, retorna todos os "End"
-    if (lastCheckpointIndex < 0) {
-      return this.operations.items.map((item) => {
-        if (item.operation.type === 'End') {
-          return item.operation.transactionID
-        }
-      })
-    }
-
-    // Encontra o índice do "Checkpoint" que o precede
-    let checkpointAnteriorIndex = lastCheckpointIndex - 1
-    while (
-      checkpointAnteriorIndex >= 0 &&
-      this.operations.items[checkpointAnteriorIndex].operation.type !== 'Checkpoint'
-    ) {
-      checkpointAnteriorIndex--
-    }
-
-    // Retorna os "End" entre os dois "Checkpoint"
-    return this.operations.items
-      .slice(checkpointAnteriorIndex + 1, lastCheckpointIndex)
-      .map((item) => {
-        if (item.operation.type === 'End') {
-          return item.operation.transactionID
-        }
-      })
+    let transactionsToCommit: number[] = []
+    transactionsToCommit = endTransactionLogEntries.map((entry) => entry.transactionID || 0)
+    transactionsToCommit = transactionsToCommit.filter((value) => value !== 0)
+    return transactionsToCommit
   }
 
   addOperationAtPosition(operation: Operation, index: number) {
