@@ -247,6 +247,7 @@ const resetState = () => {
 
 const startRecover = () => {
   status.value = 'Recover'
+  toast.warn('Recuperação de Falhas: RM_RESTART()')
   logging.value.restart()
 }
 
@@ -273,172 +274,85 @@ onUpdated(() => {
 </script>
 
 <template>
-  <div id="container" class="flex flex-row h-fit">
-    <div id="Operations" class="basis-1/5 bg-slate-800 h-full">
-      <div class="bg-slate-800 h-full p-2">
+  <div id="container" class="flex flex-row h-fit pt-3">
+    <div id="Operations" class="w-1/5 bg-slate-800 h-full">
+      <div class="bg-slate-800 h-full p-1">
         <div class="bg-gray-700 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50 flex items-center space-x-2">
             Operações&nbsp;
-            <button
-              class="rounded-full bg-blue-500 w-9 h-9 flex items-center justify-center"
-              @click="showModal = true"
-            >
+            <button class="rounded-full bg-blue-500 w-9 h-9 flex items-center justify-center" @click="showModal = true">
               <FontAwesomeIcon :icon="faCircleQuestion" class="text-s" />
             </button>
           </h2>
           <div class="flex items-center space-x-2 py-5">
-            <button
-              class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2"
-              @click="resetState()"
-            >
+            <button class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2" @click="resetState()">
               <FontAwesomeIcon :icon="faRotateLeft" />
             </button>
-            <button
-              class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2"
-              @click="
-                () => {
-                  logging.simulateCrash()
-                  status = 'crash'
-                }
-              "
-            >
+            <button class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2" @click="() => {
+              logging.simulateCrash()
+              status = 'crash'
+            }
+              ">
               <FontAwesomeIcon :icon="faTriangleExclamation" />
             </button>
-            <button
-              v-show="status === 'normal'"
-              class="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2"
-              :class="{
+            <button v-show="status === 'normal'"
+              class="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2" :class="{
                 'opacity-50 cursor-not-allowed':
                   logging.operations.items.length === 0 ||
                   logging.currentOperationIdx >= logging.operations.items.length
-              }"
-              :disabled="
-                logging.operations.items.length === 0 ||
+              }" :disabled="logging.operations.items.length === 0 ||
                 logging.currentOperationIdx >= logging.operations.items.length
-              "
-              @click="executeOperation()"
-            >
+                " @click="executeOperation()">
               <FontAwesomeIcon :icon="faForward" />
             </button>
-            <button
-              v-show="status === 'preRecovery' || status === 'crash'"
-              class="flex-1 bg-green-500 hover:bg-green-600 text-white rounded-lg px-4 py-2"
-              @click="startRecover()"
-            >
+            <button v-show="status === 'preRecovery' || status === 'crash'"
+              class="flex-1 bg-green-500 hover:bg-green-600 text-white rounded-lg px-4 py-2" @click="startRecover()">
               <FontAwesomeIcon :icon="faScrewdriverWrench" />
             </button>
           </div>
           <div>
             <div class="flex items-center space-x-2 pb-2">
-              <input
-                id="read"
-                v-model="formReadTransaction"
-                type="text"
-                class="border border-gray-300 rounded-lg px-4 py-2"
-                placeholder="READ T D"
-              />
-              <button
-                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-                :class="{ 'opacity-50 cursor-not-allowed': readButtonDisabled }"
-                :disabled="readButtonDisabled"
-                @click="addOperation(formatedReadTransaction)"
-              >
+              <input id="read" v-model="formReadTransaction" type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2 w-full" placeholder="READ T D" />
+              <button class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': readButtonDisabled }" :disabled="readButtonDisabled"
+                @click="addOperation(formatedReadTransaction)">
                 <FontAwesomeIcon :icon="faUpload" />
               </button>
             </div>
             <div class="flex items-center space-x-2 pb-2">
-              <input
-                id="write"
-                v-model="formWriteTransaction"
-                type="text"
-                class="border border-gray-300 rounded-lg px-4 py-2"
-                placeholder="WRITE T D V"
-              />
-              <button
-                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-                :class="{ 'opacity-50 cursor-not-allowed': writeButtonDisabled }"
-                :disabled="writeButtonDisabled"
-                @click="addOperation(formatedTransaction)"
-              >
+              <input id="write" v-model="formWriteTransaction" type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2 w-full" placeholder="WRITE T D V" />
+              <button class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': writeButtonDisabled }" :disabled="writeButtonDisabled"
+                @click="addOperation(formatedTransaction)">
                 <FontAwesomeIcon :icon="faFilePen" />
               </button>
             </div>
             <div class="flex items-center space-x-2 pb-2">
-              <input
-                id="end"
-                v-model="formEndTransaction"
-                type="text"
-                class="border border-gray-300 rounded-lg px-4 py-2"
-                placeholder="END T"
-              />
-              <button
-                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-                :class="{ 'opacity-50 cursor-not-allowed': endButtonDisabled }"
-                :disabled="endButtonDisabled"
-                @click="addOperation(formatedEndTransaction)"
-              >
+              <input id="end" v-model="formEndTransaction" type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2 w-full" placeholder="END T" />
+              <button class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': endButtonDisabled }" :disabled="endButtonDisabled"
+                @click="addOperation(formatedEndTransaction)">
                 <FontAwesomeIcon :icon="faStop" />
               </button>
             </div>
             <div class="flex items-center space-x-2 pb-2">
-              <input
-                id="abort"
-                v-model="formAbortTransaction"
-                type="text"
-                class="border border-gray-300 rounded-lg px-4 py-2"
-                placeholder="ABORT T"
-              />
-              <button
-                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-                :class="{ 'opacity-50 cursor-not-allowed': abortButtonDisabled }"
-                :disabled="abortButtonDisabled"
-                @click="addOperation(formatedAbortTransaction)"
-              >
+              <input id="abort" v-model="formAbortTransaction" type="text"
+                class="border border-gray-300 rounded-lg px-4 py-2 w-full" placeholder="ABORT T" />
+              <button class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                :class="{ 'opacity-50 cursor-not-allowed': abortButtonDisabled }" :disabled="abortButtonDisabled"
+                @click="addOperation(formatedAbortTransaction)">
                 <FontAwesomeIcon :icon="faBan" />
-              </button>
-            </div>
-            <!-- <div class="flex items-center space-x-2 pb-2" v-if="false">
-              <input
-                id="flush"
-                v-model="formFlushPage"
-                type="text"
-                class="border border-gray-300 rounded-lg px-4 py-2"
-                placeholder="Flush D"
-              />
-              <button
-                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-                :class="{ 'opacity-50 cursor-not-allowed': flushButtonDisabled }"
-                :disabled="flushButtonDisabled"
-                @click="addOperation(formatedFlushPage)"
-              >
-                <FontAwesomeIcon :icon="faDownload" />
-              </button>
-            </div> -->
-            <div class="flex items-center space-x-2 pb-2" v-show="false">
-              <input
-                id="commit"
-                v-model="formCommitTransaction"
-                type="text"
-                class="border border-gray-300 rounded-lg px-4 py-2"
-                placeholder="Commit T"
-              />
-              <button
-                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-                :class="{ 'opacity-50 cursor-not-allowed': commitButtonDisabled }"
-                :disabled="commitButtonDisabled"
-                @click="addOperation(formatedCommitTransaction)"
-              >
-                <FontAwesomeIcon :icon="faCheckDouble" />
               </button>
             </div>
             <div class="flex items-center space-x-2 pr-1">
               <div class="border border-gray-300 rounded-lg px-4 py-2 bg-white w-full pr-4">
                 <span>Checkpoint</span>
               </div>
-              <button
-                class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
-                @click="addOperation(formatedCheckpoint)"
-              >
+              <button class="bg-blue-500 hover:bg-blue-600 text-white ml-2 rounded-lg px-4 py-2"
+                @click="addOperation(formatedCheckpoint)">
                 <FontAwesomeIcon :icon="faFlag" />
               </button>
             </div>
@@ -446,15 +360,9 @@ onUpdated(() => {
           <div class="py-2">
             <ul class="mb-1 text-slate-200">
               <!-- List of elements -->
-              <li
-                class="flex items-center space-x-2 border rounded border-slate-600 mb-1 p-2"
-                v-for="(item, index) in logging.operations.items"
-                v-show="!item.hidden"
-                :key="item.orderID"
-              >
-                <div
-                  :class="logging.currentOperationIdx > index ? 'text-slate-500' : 'text-slate-200'"
-                >
+              <li class="flex items-center space-x-2 border rounded border-slate-600 mb-1 p-2"
+                v-for="(item, index) in logging.operations.items" v-show="!item.hidden" :key="item.orderID">
+                <div :class="logging.currentOperationIdx > index ? 'text-slate-500' : 'text-slate-200'">
                   <span v-if="'transactionID' in item.operation">
                     T_{{ item.operation.transactionID }}
                   </span>
@@ -476,124 +384,145 @@ onUpdated(() => {
       </div>
     </div>
 
-    <div id="Coluna1" class="basis-2/5 bg-slate-800 h-full">
+    <div id="Coluna1" class="w-1/2 bg-slate-800 h-full">
+      <div class="flex flex-row">
+        <div class="flex-1">
+          <div id="disk" class="p-1">
+            <div class="bg-gray-600 rounded-lg shadow-lg p-3">
+              <h2 class="text-xl font-bold mb-1 text-slate-50">
+                <FontAwesomeIcon :icon="faHardDrive" class="pr-2" />Disco
+              </h2>
+              <table class="w-full">
+                <thead>
+                  <tr>
+                    <th class="text-left bg-slate-800 p-2 text-slate-50">X</th>
+                    <th class="text-left bg-slate-800 p-2 text-slate-50">Valor</th>
+                    <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="page in logging.disk.pages" :key="page.pageID">
+                    <td class="p-1 bg-slate-50 text_slate_800">{{ page.pageID }}</td>
+                    <td class="p-1 bg-slate-50 text_slate_800">{{ page.value }}</td>
+                    <td class="p-1 bg-slate-50 text_slate_800">{{ page.pageLSN }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="flex-1">
+          <div id="Buffer" class="p-1 h-full">
+            <div class="bg-gray-600 rounded-lg shadow-lg p-3 h-full">
+              <h2 class="text-xl font-bold mb-1 text-slate-50">
+                <FontAwesomeIcon :icon="faMemory" class="pr-2 animate-pulse" />Buffer
+              </h2>
+              <table class="w-full">
+                <thead>
+                  <tr>
+                    <th class="text-left bg-slate-800 p-2 text-slate-50">X</th>
+                    <th class="text-left bg-slate-800 p-2 text-slate-50">Valor</th>
+                    <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="page in logging.buffer.pages" :key="page.pageID">
+                    <td class="p-1 bg-slate-50 text_slate_800">{{ page.pageID }}</td>
+                    <td class="p-1 bg-slate-50 text_slate_800">{{ page.value }}</td>
+                    <td class="p-1 bg-slate-50 text_slate_800">{{ page.pageLSN }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
       <div id="TransacoesAtivas" class="p-2">
         <div class="bg-gray-600 rounded-lg shadow-lg p-2">
           <h2 class="text-xl font-bold mb-1 text-slate-50">
             <FontAwesomeIcon :icon="faHardDrive" class="pr-2" />Transações
-            <span class="text-yellow-300">Ativas</span>
           </h2>
-          <table class="w-full">
-            <thead>
-              <tr>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">T</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">Status</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="transaction in logging.transactionTable.items.filter(
-                  (i) => i.status === 'Ativa'
-                )"
-                :key="transaction.transactionID"
-                class="bg-slate-50"
-              >
-                <td class="p-2 bg-yellow-100 text_slate_800">{{ transaction.transactionID }}</td>
-                <td class="p-2 bg-yellow-100 text_slate_800">{{ transaction.status }}</td>
-                <td class="p-2 bg-yellow-100 text_slate_800">
-                  {{ transaction.lastLSN }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div id="TransacoesConsolidadas" class="p-2">
-        <div class="bg-gray-600 rounded-lg shadow-lg p-2">
-          <h2 class="text-xl font-bold mb-1 text-slate-50">
-            <FontAwesomeIcon :icon="faHardDrive" class="pr-2" />Transações
-            <span class="text-green-300">Consolidadas</span>
-          </h2>
-          <table class="w-full">
-            <thead>
-              <tr>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">T</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">Status</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="transaction in logging.transactionTable.items.filter(
-                  (i) => i.status === 'Consolidada'
-                )"
-                :key="transaction.transactionID"
-                class="bg-slate-50"
-              >
-                <td class="p-2 bg-green-200 text_slate_800">{{ transaction.transactionID }}</td>
-                <td class="p-2 bg-green-200 text_slate_800">{{ transaction.status }}</td>
-                <td class="p-2 bg-green-200 text_slate_800">
-                  {{ transaction.lastLSN }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div id="TransacoesAbortadas" class="p-2">
-        <div class="bg-gray-600 rounded-lg shadow-lg p-2">
-          <h2 class="text-xl font-bold mb-1 text-slate-50">
-            <FontAwesomeIcon :icon="faHardDrive" class="pr-2" />Transações
-            <span class="text-red-400">Abortadas</span>
-          </h2>
-          <table class="w-full">
-            <thead>
-              <tr>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">T</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">Status</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="transaction in logging.transactionTable.items.filter(
-                  (i) => i.status === 'Abortada'
-                )"
-                :key="transaction.transactionID"
-                class="bg-slate-50"
-              >
-                <td class="p-2 bg-red-100 text_slate_800">{{ transaction.transactionID }}</td>
-                <td class="p-2 bg-red-100 text_slate_800">{{ transaction.status }}</td>
-                <td class="p-2 bg-red-100 text_slate_800">
-                  {{ transaction.lastLSN }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div id="Buffer" class="p-2">
-        <div class="bg-gray-600 rounded-lg shadow-lg p-2">
-          <h2 class="text-xl font-bold mb-1 text-slate-50">
-            <FontAwesomeIcon :icon="faMemory" class="pr-2 animate-pulse" />Buffer
-          </h2>
-          <table class="w-full">
-            <thead>
-              <tr>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">X</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">Valor</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="page in logging.buffer.pages" :key="page.pageID">
-                <td class="p-2 bg-slate-50 text_slate_800">{{ page.pageID }}</td>
-                <td class="p-2 bg-slate-50 text_slate_800">{{ page.value }}</td>
-                <td class="p-2 bg-slate-50 text_slate_800">{{ page.pageLSN }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="flex flex-row">
+            <div class="flex-1 p-1">
+              <table class="w-full">
+                <thead>
+                  <tr>
+                    <th colspan="3" class="bg-yellow-300 text-slate-800">ATIVAS</th>
+                  </tr>
+                  <tr>
+                    <th class="text-left bg-yellow-800 p-2 text-slate-50">T</th>
+                    <th class="text-left bg-yellow-800 p-2 text-slate-50">Status</th>
+                    <th class="text-left bg-yellow-800 p-2 text-slate-50">LSN</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="transaction in logging.transactionTable.items.filter(
+                    (i) => i.status === 'Ativa'
+                  )" :key="transaction.transactionID" class="bg-slate-50">
+                    <td class="p-1 bg-yellow-100 text_slate_800">{{ transaction.transactionID }}</td>
+                    <td class="p-1 bg-yellow-100 text_slate_800">{{ transaction.status }}</td>
+                    <td class="p-1 bg-yellow-100 text_slate_800">
+                      {{ transaction.lastLSN }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="flex-1 p-1">
+              <table class="w-full">
+                <thead>
+                  <tr>
+                    <th colspan="3" class="bg-green-300 text-slate-800">
+                      CONSOLIDADAS
+                    </th>
+                  </tr>
+                  <tr>
+                    <th class="text-left bg-green-800 p-2 text-slate-50">T</th>
+                    <th class="text-left bg-green-800 p-2 text-slate-50">Status</th>
+                    <th class="text-left bg-green-800 p-2 text-slate-50">LSN</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="transaction in logging.transactionTable.items.filter(
+                    (i) => i.status === 'Consolidada'
+                  )" :key="transaction.transactionID" class="bg-slate-50">
+                    <td class="p-1 bg-green-200 text_slate_800">{{ transaction.transactionID }}</td>
+                    <td class="p-1 bg-green-200 text_slate_800">{{ transaction.status }}</td>
+                    <td class="p-1 bg-green-200 text_slate_800">
+                      {{ transaction.lastLSN }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="flex-1 p-1">
+              <table class="w-full">
+                <thead>
+                  <tr>
+                    <th colspan="3" class="bg-red-300">
+                      Abortadas
+                    </th>
+                  </tr>
+                  <tr>
+                    <th class="text-left bg-red-800 p-2 text-slate-50">T</th>
+                    <th class="text-left bg-red-800 p-2 text-slate-50">Status</th>
+                    <th class="text-left bg-red-800 p-2 text-slate-50">LSN</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="transaction in logging.transactionTable.items.filter(
+                    (i) => i.status === 'Abortada'
+                  )" :key="transaction.transactionID" class="bg-slate-50">
+                    <td class="p-1 bg-red-100 text_slate_800">{{ transaction.transactionID }}</td>
+                    <td class="p-1 bg-red-100 text_slate_800">{{ transaction.status }}</td>
+                    <td class="p-1 bg-red-100 text_slate_800">
+                      {{ transaction.lastLSN }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
       <div id="DirtyTable" class="p-2" v-if="false">
@@ -610,40 +539,17 @@ onUpdated(() => {
             </thead>
             <tbody>
               <tr v-for="page in logging.dirtyPageTable.items" :key="page.pageID">
-                <td class="p-2 bg-slate-50 text_slate_800">{{ page.pageID }}</td>
-                <td class="p-2 bg-slate-50 text_slate_800">{{ page.recLSN }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div id="disk" class="p-2">
-        <div class="bg-gray-600 rounded-lg shadow-lg p-2">
-          <h2 class="text-xl font-bold mb-1 text-slate-50">
-            <FontAwesomeIcon :icon="faHardDrive" class="pr-2" />Disco
-          </h2>
-          <table class="w-full">
-            <thead>
-              <tr>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">X</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">Valor</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="page in logging.disk.pages" :key="page.pageID">
-                <td class="p-2 bg-slate-50 text_slate_800">{{ page.pageID }}</td>
-                <td class="p-2 bg-slate-50 text_slate_800">{{ page.value }}</td>
-                <td class="p-2 bg-slate-50 text_slate_800">{{ page.pageLSN }}</td>
+                <td class="p-1 bg-slate-50 text_slate_800">{{ page.pageID }}</td>
+                <td class="p-1 bg-slate-50 text_slate_800">{{ page.recLSN }}</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
-    <div id="Coluna2" class="basis-2/5 bg-slate-800 h-full">
-      <div id="Log" class="bg-gray-800 h-full p-2">
-        <div class="bg-gray-700 rounded-lg shadow-lg p-2 overflow-y-auto">
+    <div id="Coluna2" class="w-1/5 bg-slate-800 h-full grow">
+      <div id="Log" class="bg-gray-800 h-full p-1">
+        <div class="bg-gray-700 rounded-lg shadow-lg p-1">
           <h2 class="text-xl font-bold mb-1 text-slate-50">Log</h2>
           <table class="w-full">
             <thead>
@@ -651,54 +557,50 @@ onUpdated(() => {
                 <th class="text-left bg-slate-800 p-2 text-slate-50">
                   <FontAwesomeIcon :icon="faHardDrive" />
                 </th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">LSN</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">prevLSN</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">T</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">Tipo</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">X</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">AFIM</th>
-                <th class="text-left bg-slate-800 p-2 text-slate-50">BFIM</th>
+                <th class="text-left bg-slate-800 pl-2 text-slate-50">LSN</th>
+                <th class="text-left bg-slate-800 pl-1 text-slate-50">LSNAn</th>
+                <th class="text-left bg-slate-800 pl-1 text-slate-50">T</th>
+                <th class="text-left bg-slate-800 pl-1 text-slate-50">Tipo</th>
+                <th class="text-left bg-slate-800 pl-1 text-slate-50">X</th>
+                <th class="text-left bg-slate-800 pl-1 text-slate-50">AFIM</th>
+                <th class="text-left bg-slate-800 pl-1 text-slate-50">BFIM</th>
               </tr>
             </thead>
             <tbody>
-              <tr
-                v-for="entry in logging.log.entries"
-                :key="entry.LSN"
-                :class="entry.active ? 'bg-green-200' : 'bg-slate-50'"
-              >
-                <td class="p-2">
-                  <FontAwesomeIcon :icon="faHardDrive" v-if="entry.persisted" />
+              <tr v-for="entry in logging.log.entries" :key="entry.LSN"
+                :class="entry.active ? 'bg-green-200' : 'bg-slate-50'">
+                <td class="p-1">
+                  <FontAwesomeIcon :icon="faHardDrive" class="text-green-600" v-if="entry.persisted" />
                   <FontAwesomeIcon :icon="faMemory" class="animate-pulse text-red-600" v-else />
                 </td>
-                <td class="p-2 text_slate_800">
+                <td class="p-1 text_slate_800">
                   {{ entry.LSN }}
                 </td>
-                <td class="p-2 text_slate_800">
+                <td class="p-1 text_slate_800">
                   {{ entry.prevLSN }}
                 </td>
-                <td class="p-2 text_slate_800">
+                <td class="p-1 text_slate_800">
                   {{ entry.transactionID }}
                 </td>
-                <td class="p-2 text_slate_800">
+                <td class="p-1 text_slate_800">
                   {{ entry.type }}
                 </td>
-                <td class="p-2 text_slate_800">
+                <td class="p-1 text_slate_800">
                   {{ entry.pageID }}
                 </td>
-                <td class="p-2 text_slate_800">
+                <td class="p-1 text_slate_800">
                   {{ entry.value }}
                 </td>
-                <td class="p-2 text_slate_800">
+                <td class="p-1 text_slate_800">
                   {{ entry.prevValue }}
                 </td>
               </tr>
             </tbody>
           </table>
-          <div class="text-slate-50">
+          <div class="text-slate-50" v-show="false">
             <pre>
-            {{ logging.checkpoint.transactionTable?.items }}
-          </pre
-            >
+              {{ logging.message }}
+            </pre>
           </div>
         </div>
       </div>
@@ -736,84 +638,84 @@ onUpdated(() => {
           </thead>
           <tbody>
             <tr>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 <span class="text-yellow-500 font-black">READ</span>
               </td>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 Lê um valor de um dado. Utilize a notação
                 <span class="text-yellow-500 font-black">T</span>: Transação - Numero,
                 <span class="text-yellow-500 font-black">D</span>: Dado - String.
               </td>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 <button>
                   <FontAwesomeIcon :icon="faUpload" />
                 </button>
               </td>
             </tr>
             <tr>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 <span class="text-yellow-500 font-black">WRITE</span>
               </td>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 Escreve um valor em uma dado. Utilize a notação
                 <span class="text-yellow-500 font-black">T</span>: Transação - Numero,
                 <span class="text-yellow-500 font-black">D</span>: Dado - String,
                 <span class="text-yellow-500 font-black">V</span>: Valor - String.
               </td>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 <button>
                   <FontAwesomeIcon :icon="faFilePen" />
                 </button>
               </td>
             </tr>
             <tr>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 <span class="text-yellow-500 font-black">END</span>
               </td>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 Finaliza uma transação. Utilize a notação
                 <span class="text-yellow-500 font-black">T</span>: Transação - Numero.
               </td>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 <button>
                   <FontAwesomeIcon :icon="faStop" />
                 </button>
               </td>
             </tr>
             <tr>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 <span class="text-yellow-500 font-black">ABORT</span>
               </td>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 Aborta uma transação. Utilize a notação
                 <span class="text-yellow-500 font-black">T</span>: Transação - Numero.
               </td>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 <button>
                   <FontAwesomeIcon :icon="faBan" />
                 </button>
               </td>
             </tr>
             <tr>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 <span class="text-yellow-500 font-black">COMMIT</span>
               </td>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 Consolida uma transação. Utilize a notação
                 <span class="text-yellow-500 font-black">T</span>: Transação - Numero.
               </td>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 <button>
                   <FontAwesomeIcon :icon="faCheckDouble" />
                 </button>
               </td>
             </tr>
             <tr>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">
                 <span class="text-yellow-500 font-black">CHECKPOINT</span>
               </td>
-              <td class="p-2 bg-slate-600">Insere uma entrada de Checkpoint no log</td>
-              <td class="p-2 bg-slate-600">
+              <td class="p-1 bg-slate-600">Insere uma entrada de Checkpoint no log</td>
+              <td class="p-1 bg-slate-600">
                 <button>
                   <FontAwesomeIcon :icon="faFlag" />
                 </button>
@@ -823,10 +725,7 @@ onUpdated(() => {
         </table>
       </div>
       <div class="flex justify-end space-x-2">
-        <button
-          @click="showModal = false"
-          class="bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2"
-        >
+        <button @click="showModal = false" class="bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2">
           Fechar
         </button>
       </div>

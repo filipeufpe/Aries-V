@@ -16,7 +16,7 @@
 - RM_Write
 - RM_Commit
 - RM_Abort
-- RM*Restart (\_Operação de recuperação*)
+- RM_Restart (_Operação de recuperação_)
 
 #### Listas em Disco
 

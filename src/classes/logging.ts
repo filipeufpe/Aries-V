@@ -96,6 +96,13 @@ export interface AbortOperation {
   transactionID: number
 }
 
+export interface CLROperation {
+  type: 'CLR'
+  transactionID: number
+  pageID: string
+  value: string
+}
+
 type OperationTypes =
   | WriteOperation
   | FlushOperation
@@ -249,6 +256,10 @@ class Logging {
         this.simulateCacheManagement()
         this.abort(operation)
         break
+      case 'CLR':
+        console.clear()
+        this.undoEntry(operation)
+        break
     }
   }
 
@@ -258,7 +269,7 @@ class Logging {
         .filter((entry) => entry.pageID === operation.pageID && entry.type === 'write_item')
         .map((entry) => entry.LSN)
         .pop() || null
-    // get the entry.value of the last log entry for this page
+
     const prevValue =
       this.log.entries
         .filter((entry) => entry.pageID === operation.pageID && entry.type === 'read_item')
@@ -293,7 +304,7 @@ class Logging {
     this.updateBuffer(operation.pageID)
     this.updateDirtyPageTable(operation.pageID)
     this.currentOperationIdx++
-    // explain the logic behind this in a console.log output
+
     console.log(
       `A transação ${operation.transactionID} escreveu no dado ${operation.pageID} o valor ${operation.value}`
     )
@@ -374,19 +385,14 @@ class Logging {
       pageID: '',
       persisted: false
     })
-    //this.currentOperationIdx++
   }
 
   end(operation: EndOperation) {
-    // set all log entries to be inactive
     this.log.entries.forEach((entry) => {
       entry.active = false
     })
     this.currentOperationIdx++
-    // remove transaction from transactionTable
-    //    this.transactionTable.items = this.transactionTable.items.filter(
-    //(t) => t.transactionID !== operation.transactionID
-    //)
+
     this.log.entries.push({
       active: true,
       LSN: this.log.entries.length,
@@ -402,10 +408,7 @@ class Logging {
       entry.active = false
     })
     this.currentOperationIdx++
-    // remove transaction from transactionTable
-    //    this.transactionTable.items = this.transactionTable.items.filter(
-    //(t) => t.transactionID !== operation.transactionID
-    //)
+
     this.log.entries.push({
       active: true,
       LSN: this.log.entries.length,
@@ -427,43 +430,59 @@ class Logging {
   flush(operation: FlushOperation) {
     //set all log entries to be inactive
 
-    const correspondentLogEntry = this.log.entries.find(
-      (entry) =>
-        entry.pageID === operation.pageID &&
-        entry.type === 'write_item' &&
-        entry.transactionID === operation.transactionID
-    )
+    this.message = {
+      enabled: true,
+      type: 'Info',
+      text: `Write Ahead Log: Log persistido em Disco com sucesso!`
+    }
+    this.log.entries.forEach((entry) => {
+      entry.persisted = true
+    })
 
-    const currOp = this.getCurrentOperation()
-    if (currOp?.type === 'Flush') {
-      this.currentOperationIdx++
-    }
-    if (currOp?.type === 'Flush') {
-      this.log.entries.forEach((entry) => {
-        entry.active = false
-      })
-    }
-    const page = this.buffer.pages.find((p) => p.pageID === operation.pageID)
-    if (page) {
-      if (this.disk.pages.filter((p) => p.pageID === operation.pageID).length === 0) {
-        console.log(`O dado ${operation.pageID} não existe no disco, portanto será adicionado.`)
-        this.disk.pages.push(page)
-      } else {
-        // update the page in the disk with pageLSN and page.value
-        console.log(`O dado ${operation.pageID} já existe no disco, portanto será atualizado.`)
-        this.disk.pages.forEach((p) => {
-          if (p.pageID === operation.pageID) {
-            p.pageLSN = correspondentLogEntry?.LSN || null
-            p.value = page.value
-          }
+    setTimeout(() => {
+      this.message = {
+        enabled: true,
+        type: 'Info',
+        text: `O Gerenciador de Cache foi acionado: Dado ${operation.pageID} gravado em partição de disco.`
+      }
+      const correspondentLogEntry = this.log.entries.find(
+        (entry) =>
+          entry.pageID === operation.pageID &&
+          entry.type === 'write_item' &&
+          entry.transactionID === operation.transactionID
+      )
+
+      const currOp = this.getCurrentOperation()
+      if (currOp?.type === 'Flush') {
+        this.currentOperationIdx++
+      }
+      if (currOp?.type === 'Flush') {
+        this.log.entries.forEach((entry) => {
+          entry.active = false
         })
       }
+      const page = this.buffer.pages.find((p) => p.pageID === operation.pageID)
+      if (page) {
+        if (this.disk.pages.filter((p) => p.pageID === operation.pageID).length === 0) {
+          console.log(`O dado ${operation.pageID} não existe no disco, portanto será adicionado.`)
+          this.disk.pages.push(page)
+        } else {
+          // update the page in the disk with pageLSN and page.value
+          console.log(`O dado ${operation.pageID} já existe no disco, portanto será atualizado.`)
+          this.disk.pages.forEach((p) => {
+            if (p.pageID === operation.pageID) {
+              p.pageLSN = correspondentLogEntry?.LSN || null
+              p.value = page.value
+            }
+          })
+        }
 
-      // this.dirtyPageTable.items = this.dirtyPageTable.items.filter(
-      //   (p) => p.pageID !== operation.pageID
-      // )
-      this.buffer.pages = this.buffer.pages.filter((p) => p.pageID !== operation.pageID)
-    }
+        // this.dirtyPageTable.items = this.dirtyPageTable.items.filter(
+        //   (p) => p.pageID !== operation.pageID
+        // )
+        this.buffer.pages = this.buffer.pages.filter((p) => p.pageID !== operation.pageID)
+      }
+    }, 2000)
   }
 
   setCheckpoint() {
@@ -684,7 +703,7 @@ class Logging {
   }
 
   getPendingTransactions(): TransactionTableItem[] {
-    const pendingTransactions = this.checkpoint.transactionTable?.items || []
+    const pendingTransactions = this.transactionTable?.items || []
     console.table(this.checkpoint.transactionTable?.items)
     pendingTransactions.forEach((transaction) => {
       if (transaction.status === 'Ativa') {
@@ -761,18 +780,19 @@ class Logging {
       this.operations.items.forEach((op) => {
         if (this.isWriteOperation(op.operation)) {
           if (op.operation.transactionID === currOp.transactionID) {
-            this.appendMessage(
-              `O Gerenciador de Cache gravou o dado ${op.operation.pageID} no disco.\n`
-            )
-            this.flush({
+            this.newLogEntry({
               type: 'Flush',
               pageID: op.operation.pageID,
               transactionID: op.operation.transactionID
             })
+            // this.flush({
+            //   type: 'Flush',
+            //   pageID: op.operation.pageID,
+            //   transactionID: op.operation.transactionID
+            // })
           }
         }
       })
-      this.showMessage()
     }
 
     this.buffer.pages.forEach((page) => {
@@ -783,7 +803,6 @@ class Logging {
         )
         if (transaction?.status === 'Ativa' && Math.random() > 0.5) {
           console.log(`O dado ${page.pageID} foi alterado em memória e será persistido no disco.`)
-          this.appendMessage(`O gerenciador de Cache gravou o dado ${page.pageID} no disco.\n`)
           this.flush({
             type: 'Flush',
             pageID: page.pageID,
@@ -792,8 +811,6 @@ class Logging {
         }
       }
     })
-    this.showMessage()
-    this.clearMessage()
   }
 
   simulateCrash() {
@@ -802,7 +819,8 @@ class Logging {
     Isso significa que os dados da tabela de transações e da tabela de dados alterados em memória foram perdidos.
     Além disso, todas as entradas do log que não foram persistidas também foram perdidas.
     `)
-    this.transactionTable.items = []
+    //this.transactionTable.items = []
+    this.operations.items = []
     this.buffer.pages = []
     this.dirtyPageTable.items = []
     console.table(this.log.entries.filter((e) => e.persisted))
@@ -817,12 +835,22 @@ class Logging {
     Além disso o log é avaliado e as transações ativas (que contém um start) e 
     não confirmadas (ou seja, sem o end correspondente) são identificadas.
     `)
-    this.transactionTable.items = this.getPendingTransactions()
+    //this.transactionTable.items = this.getPendingTransactions()
     this.dirtyPageTable = this.checkpoint.dirtyPageTable || { items: [] }
   }
 
   // Método para recuperação após falha
   restart() {
+    this.message = {
+      enabled: true,
+      type: 'Info',
+      text: `Recuperação de Falhas: RM_Restart().`
+    }
+    this.message = {
+      enabled: false,
+      type: '',
+      text: ``
+    }
     console.clear()
     // Carrega checkpoint
     this.loadCheckpoint()
@@ -842,26 +870,6 @@ class Logging {
 
   isWriteOperation(operation: OperationTypes): operation is WriteOperation {
     return operation.type === 'Write'
-  }
-
-  setMessage(message: string, tipo?: string) {
-    if (tipo) {
-      this.message.type = tipo
-    }
-    this.message.text = message
-  }
-
-  appendMessage(message: string) {
-    this.message.text += message
-  }
-
-  showMessage() {
-    this.message.enabled = true
-  }
-
-  clearMessage() {
-    this.message.enabled = false
-    this.message.text = ''
   }
 }
 export default Logging
