@@ -97,6 +97,7 @@ export interface AbortOperation {
 }
 
 export interface CLROperation {
+  LSN: number
   type: 'CLR'
   transactionID: number
   pageID: string
@@ -111,6 +112,7 @@ type OperationTypes =
   | ReadOperation
   | EndOperation
   | AbortOperation
+  | CLROperation
 
 export interface Operation {
   hidden?: boolean
@@ -803,11 +805,27 @@ class Logging {
         )
         if (transaction?.status === 'Ativa' && Math.random() > 0.5) {
           console.log(`O dado ${page.pageID} foi alterado em memória e será persistido no disco.`)
-          this.flush({
-            type: 'Flush',
-            pageID: page.pageID,
-            transactionID: logEntry.transactionID || 0
-          })
+
+          // envio Agendado
+          this.addOperationAtPosition(
+            {
+              hidden: true,
+              orderID: this.currentOperationIdx + 1,
+              operation: {
+                type: 'Flush',
+                pageID: page.pageID,
+                transactionID: logEntry.transactionID || 0
+              }
+            },
+            this.currentOperationIdx + 1
+          )
+
+          // envio DIRETO
+          // this.flush({
+          //   type: 'Flush',
+          //   pageID: page.pageID,
+          //   transactionID: logEntry.transactionID || 0
+          // })
         }
       }
     })
