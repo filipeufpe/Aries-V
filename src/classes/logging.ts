@@ -385,6 +385,15 @@ class Logging {
     const entriesToUndo = this.getTransactionEntries(operation.transactionID)
 
     entriesToUndo.forEach((entry) => {
+      this.disk.pages.forEach((page) => {
+        if (page.pageID === entry.pageID) {
+          this.buffer.pages.push({
+            pageID: page.pageID,
+            pageLSN: page.pageLSN,
+            value: page.value
+          })
+        }
+      })
       this.undoEntry(entry, true)
     })
   }
