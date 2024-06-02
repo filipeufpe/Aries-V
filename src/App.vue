@@ -69,7 +69,7 @@ const readButtonDisabled = computed(() => {
     isNaN(parseInt(formReadTransaction.value.split(' ')[0])) ||
     !isNaN(parseInt(formReadTransaction.value.split(' ')[1])) ||
     formReadTransaction.value.split(' ')[1] === '' ||
-    !['A', 'B', 'C', 'D', 'E'].includes(formReadTransaction.value.split(' ')[1].toUpperCase()) ||
+    !['A', 'B', 'C', 'D', 'E', 'F'].includes(formReadTransaction.value.split(' ')[1].toUpperCase()) ||
     abortedAndEndedTransactions.value.includes(parseInt(formReadTransaction.value.split(' ')[0]))
   )
 })
