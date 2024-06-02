@@ -644,6 +644,8 @@ class Logging {
   }
 
   simulateCacheManagement(): void {
+    // TODO: fazer com que somente transações com WRITE persistam o log
+
     const currOp = this.operations.items[this.currentOperationIdx].operation
     if (this.isEndOperation(currOp)) {
       this.operations.items.forEach((op) => {
@@ -677,7 +679,8 @@ class Logging {
           }
         }
       })
-      this.log.entries.forEach((entry) => (entry.persisted = true))
+      // TODO: correção do todo foi comentar a linnha abaixo
+      //this.log.entries.forEach((entry) => (entry.persisted = true))
     }
 
     this.buffer.pages.forEach((page) => {

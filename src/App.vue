@@ -56,9 +56,10 @@ const writeButtonDisabled = computed(() => {
         (op.operation.type === 'End' || op.operation.type === 'Abort') &&
         op.operation?.transactionID === parseInt(formWriteTransaction.value.split(' ')[0])
     ) ||
-    this.abortedAndEndedTransactions.includes(parseInt(formWriteTransaction.value.split(' ')[0]))
+    abortedAndEndedTransactions.value.includes(parseInt(formWriteTransaction.value.split(' ')[0]))
   )
 })
+
 const readButtonDisabled = computed(() => {
   return (
     formReadTransaction.value === '' ||
@@ -68,7 +69,8 @@ const readButtonDisabled = computed(() => {
     isNaN(parseInt(formReadTransaction.value.split(' ')[0])) ||
     !isNaN(parseInt(formReadTransaction.value.split(' ')[1])) ||
     formReadTransaction.value.split(' ')[1] === '' ||
-    this.abortedAndEndedTransactions.includes(parseInt(formEndTransaction.value.split(' ')[0]))
+    !['A', 'B', 'C', 'D', 'E'].includes(formReadTransaction.value.split(' ')[1].toUpperCase()) ||
+    abortedAndEndedTransactions.value.includes(parseInt(formReadTransaction.value.split(' ')[0]))
   )
 })
 
