@@ -9,7 +9,7 @@ export default defineConfig({
   server: {
     port: 8080
   },
-  base: '/Aries-V/',
+  base: '/recuperacao/',
   build: {
     sourcemap: true
   },

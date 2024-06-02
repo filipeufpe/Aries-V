@@ -649,12 +649,12 @@ onUpdated(() => {
               </tr>
             </tbody>
           </table>
-          <div class="text-slate-50" v-show="true">
-            <ul>
+          <div class="text-slate-50" v-show="false">
+            <!-- <ul>
               <li v-for="i in logging.operations.items" :key="i.orderID">
                 {{ i.orderID }} - {{ i.operation.type }} (T_{{ i.operation?.transactionID }})
               </li>
-            </ul>
+            </ul> -->
           </div>
         </div>
       </div>
