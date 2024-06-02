@@ -55,7 +55,8 @@ const writeButtonDisabled = computed(() => {
       (op) =>
         (op.operation.type === 'End' || op.operation.type === 'Abort') &&
         op.operation?.transactionID === parseInt(formWriteTransaction.value.split(' ')[0])
-    )
+    ) ||
+    this.abortedAndEndedTransactions.includes(parseInt(formWriteTransaction.value.split(' ')[0]))
   )
 })
 const readButtonDisabled = computed(() => {
@@ -66,9 +67,11 @@ const readButtonDisabled = computed(() => {
     formReadTransaction.value.split(' ').length > 2 ||
     isNaN(parseInt(formReadTransaction.value.split(' ')[0])) ||
     !isNaN(parseInt(formReadTransaction.value.split(' ')[1])) ||
-    formReadTransaction.value.split(' ')[1] === ''
+    formReadTransaction.value.split(' ')[1] === '' ||
+    this.abortedAndEndedTransactions.includes(parseInt(formEndTransaction.value.split(' ')[0]))
   )
 })
+
 const endButtonDisabled = computed(() => {
   return (
     formEndTransaction.value === '' ||
@@ -116,33 +119,6 @@ const abortButtonDisabled = computed(() => {
   )
 })
 
-// const flushButtonDisabled = computed(() => {
-//   return (
-//     formFlushPage.value === '' ||
-//     formFlushPage.value.split(' ').length < 1 ||
-//     formFlushPage.value.split(' ')[0] === '' ||
-//     formFlushPage.value.split(' ').length > 1 ||
-//     !isNaN(parseInt(formFlushPage.value))
-//   )
-// })
-
-// const commitButtonDisabled = computed(() => {
-//   return (
-//     formCommitTransaction.value === '' ||
-//     formCommitTransaction.value.split(' ').length < 1 ||
-//     formCommitTransaction.value.split(' ')[0] === '' ||
-//     formCommitTransaction.value.split(' ').length > 1 ||
-//     isNaN(parseInt(formCommitTransaction.value)) ||
-//     !logging.value.operations.items.some((e) => {
-//       if (e.operation.type === 'End') {
-//         return e.operation?.transactionID === parseInt(formCommitTransaction.value)
-//       } else {
-//         return false
-//       }
-//     })
-//   )
-// })
-
 //propriedades computadas
 
 const formatedTransaction = computed((): Operation => {
@@ -177,16 +153,6 @@ const formatedAbortTransaction = computed((): Operation => {
   }
 })
 
-// const formatedFlushPage = computed((): Operation => {
-//   return {
-//     orderID: logging.value.operations.items.length + 1,
-//     operation: {
-//       type: 'Flush',
-//       pageID: formFlushPage.value
-//     }
-//   }
-// })
-
 const formatedReadTransaction = computed((): Operation => {
   return {
     orderID: logging.value.operations.items.length + 1,
@@ -198,16 +164,6 @@ const formatedReadTransaction = computed((): Operation => {
   }
 })
 
-// const formatedCommitTransaction = computed((): Operation => {
-//   return {
-//     orderID: logging.value.operations.items.length + 1,
-//     operation: {
-//       type: 'Commit',
-//       transactionID: parseInt(formCommitTransaction.value.split(' ')[0])
-//     }
-//   }
-// })
-
 const formatedCheckpoint = computed((): Operation => {
   return {
     orderID: logging.value.operations.items.length + 1,
@@ -217,6 +173,18 @@ const formatedCheckpoint = computed((): Operation => {
   }
 })
 
+const abortedAndEndedTransactions = computed((): number[] => {
+  let aet = []
+  aet = logging.value.operations.items.map((op): number => {
+    if (op.operation.type === 'End' || op.operation.type === 'Abort') {
+      return op.operation.transactionID
+    } else {
+      return 0
+    }
+  })
+  aet = aet.filter((i) => i !== 0)
+  return aet || []
+})
 //instancia do objeto Aries e funções
 const logging = ref(new Logging())
 
@@ -259,6 +227,7 @@ onMounted(() => {
       }
     }
   })
+  console.log(abortedAndEndedTransactions.value)
 })
 
 onUpdated(() => {
