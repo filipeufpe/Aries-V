@@ -276,7 +276,7 @@ class Logging {
           return
         } else {
           console.log(`O dado ${operation.pageID} já está na memória, portanto será atualizado.`)
-          this.buffer.pages[idx] = p
+          this.buffer.pages[idx] = this.clone(p)
         }
         return
       }
