@@ -69,7 +69,9 @@ const readButtonDisabled = computed(() => {
     isNaN(parseInt(formReadTransaction.value.split(' ')[0])) ||
     !isNaN(parseInt(formReadTransaction.value.split(' ')[1])) ||
     formReadTransaction.value.split(' ')[1] === '' ||
-    !['A', 'B', 'C', 'D', 'E', 'F'].includes(formReadTransaction.value.split(' ')[1].toUpperCase()) ||
+    !['A', 'B', 'C', 'D', 'E', 'F'].includes(
+      formReadTransaction.value.split(' ')[1].toUpperCase()
+    ) ||
     abortedAndEndedTransactions.value.includes(parseInt(formReadTransaction.value.split(' ')[0]))
   )
 })
@@ -542,7 +544,7 @@ onUpdated(() => {
               <table class="w-full">
                 <thead>
                   <tr>
-                    <th colspan="3" class="bg-red-300">Abortadas</th>
+                    <th colspan="3" class="bg-red-300">ABORTADAS</th>
                   </tr>
                   <tr>
                     <th class="text-left bg-red-800 p-2 text-slate-50">T</th>
