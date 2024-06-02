@@ -382,19 +382,17 @@ class Logging {
   }
 
   flush(operation: FlushOperation) {
-    //set all log entries to be inactive
-
     this.message = {
       enabled: true,
       type: 'Info',
       text: `O Gerenciador de Cache foi acionado: Dado ${operation.pageID} gravado em partição de disco.`
     }
-    const correspondentLogEntry = this.log.entries.find(
-      (entry) =>
-        entry.pageID === operation.pageID &&
-        entry.type === 'write_item' &&
-        entry.transactionID === operation.transactionID
-    )
+    // const correspondentLogEntry = this.log.entries.find(
+    //   (entry) =>
+    //     entry.pageID === operation.pageID &&
+    //     entry.type === 'write_item' &&
+    //     entry.transactionID === operation.transactionID
+    // )
 
     const currOp = this.getCurrentOperation()
     if (currOp?.type === 'Flush') {
@@ -413,17 +411,14 @@ class Logging {
       } else {
         // update the page in the disk with pageLSN and page.value
         console.log(`O dado ${operation.pageID} já existe no disco, portanto será atualizado.`)
+        this.log.entries.forEach((e) => (e.persisted = true))
         this.disk.pages.forEach((p) => {
           if (p.pageID === operation.pageID) {
-            p.pageLSN = correspondentLogEntry?.LSN || null
+            p.pageLSN = page.pageLSN
             p.value = page.value
           }
         })
       }
-
-      // this.dirtyPageTable.items = this.dirtyPageTable.items.filter(
-      //   (p) => p.pageID !== operation.pageID
-      // )
       this.buffer.pages = this.buffer.pages.filter((p) => p.pageID !== operation.pageID)
     }
   }
@@ -752,14 +747,15 @@ class Logging {
         if (transaction?.status === 'Ativa' && Math.random() > 0.5) {
           console.log(`O dado ${page.pageID} foi alterado em memória e será persistido no disco.`)
 
+          this.log.entries.forEach((entry) => {
+            entry.persisted = true
+          })
+
           this.message = {
             enabled: true,
             type: 'Info',
             text: `Write Ahead Log: Log persistido em Disco com sucesso!`
           }
-          this.log.entries.forEach((entry) => {
-            entry.persisted = true
-          })
 
           this.addOperationAtPosition(
             {

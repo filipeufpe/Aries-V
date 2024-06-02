@@ -268,6 +268,7 @@ onUpdated(() => {
   }
   if (logging.value.message.enabled && logging.value.message.type === 'Info') {
     toast.info(logging.value.message.text)
+    logging.value.log.entries.forEach((e) => (e.persisted = true))
     logging.value.message.enabled = false
   }
 })
