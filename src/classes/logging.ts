@@ -180,37 +180,29 @@ class Logging {
   newLogEntry(operation: OperationTypes) {
     switch (operation.type) {
       case 'Write':
-        console.clear()
         this.simulateCacheManagement()
         this.write(operation)
         break
       case 'Flush':
-        console.clear()
         this.flush(operation)
         break
       case 'Commit':
-        console.clear()
         this.commit(operation)
         break
       case 'Checkpoint':
-        console.clear()
         this.setCheckpoint()
         break
       case 'Read':
-        console.clear()
         this.simulateCacheManagement()
         this.read(operation)
         break
       case 'End':
-        console.clear()
         this.end(operation)
         break
       case 'Abort':
-        console.clear()
         this.abort(operation)
         break
       case 'CLR':
-        console.clear()
         this.undoEntry(operation)
         break
     }
@@ -257,10 +249,6 @@ class Logging {
     this.updateBuffer(operation.pageID)
     this.updateDirtyPageTable(operation.pageID)
     this.currentOperationIdx++
-
-    console.log(
-      `A transação ${operation.transactionID} escreveu no dado ${operation.pageID} o valor ${operation.value}`
-    )
   }
 
   read(operation: ReadOperation) {
@@ -271,11 +259,9 @@ class Logging {
     this.disk.pages.forEach((p, idx) => {
       if (p.pageID === operation.pageID) {
         if (this.buffer.pages.filter((p) => p.pageID === operation.pageID).length === 0) {
-          console.log(`O dado ${operation.pageID} não está na memória, portanto será adicionado.`)
           this.buffer.pages.push(this.clone(p))
           return
         } else {
-          console.log(`O dado ${operation.pageID} já está na memória, portanto será atualizado.`)
           this.buffer.pages[idx] = this.clone(p)
         }
         return
@@ -291,10 +277,7 @@ class Logging {
         pageID: ''
       })
     }
-    console.log(`
-      A transação ${operation.transactionID} leu o dado ${operation.pageID} do disco. 
-      E uma entrada do tipo 'read_item' é adicionada ao log.
-    `)
+
     this.log.entries.push({
       active: true,
       LSN: this.log.entries.length,
@@ -320,14 +303,6 @@ class Logging {
       .filter((entry) => entry.transactionID === operation.transactionID)
       .map((entry) => entry.LSN)
       .slice(-1)[0]
-
-    console.log(
-      `A transação ${operation.transactionID} foi consolidada. Uma entrada do tipo 'Commit' é adicionada ao log.`
-    )
-
-    console.log(
-      `Além disso, uma entrada do tipo 'End' é adicionada ao log, para indicar que a transação foi finalizada.`
-    )
 
     this.log.entries.push({
       active: true,
@@ -406,11 +381,9 @@ class Logging {
     const page = this.buffer.pages.find((p) => p.pageID === operation.pageID)
     if (page) {
       if (this.disk.pages.filter((p) => p.pageID === operation.pageID).length === 0) {
-        console.log(`O dado ${operation.pageID} não existe no disco, portanto será adicionado.`)
         this.disk.pages.push(page)
       } else {
         // update the page in the disk with pageLSN and page.value
-        console.log(`O dado ${operation.pageID} já existe no disco, portanto será atualizado.`)
         this.log.entries.forEach((e) => (e.persisted = true))
         this.disk.pages.forEach((p) => {
           if (p.pageID === operation.pageID) {
@@ -432,13 +405,7 @@ class Logging {
     }
     this.currentOperationIdx++
     this.checkpoint.nextLSN = this.log.entries.length
-    console.log(
-      `Ao realizar um CheckPoint, uma cópia da tabela de transações é feita.
-      Bem como uma cópia da tabela de dados alterados em memória`
-    )
 
-    // add a log.entry for this checkpoint
-    console.log(`E uma entrada do tipo 'Checkpoint' é adicionada ao log.`)
     this.log.entries.push({
       active: true,
       LSN: this.log.entries.length,
@@ -506,7 +473,6 @@ class Logging {
 
   addOperationAtPosition(operation: Operation, index: number) {
     if (index < 0 || index > this.operations.items.length) {
-      console.log(`A posição ${index} não é válida.`)
       return
     }
     this.operations.items.splice(index, 0, operation)
@@ -519,7 +485,6 @@ class Logging {
   }
 
   apendFlushOperations(transactionID: number) {
-    console.log('rodou')
     // para cada item em this.operations.items, retorne valores distintos de pageID
     // de todas as operações de escrita de transactionID
     const pages = this.operations.items
@@ -568,16 +533,9 @@ class Logging {
     const transaction = this.transactionTable.items.find((t) => t.transactionID === transactionID)
 
     if (transaction) {
-      console.log(
-        `A transação ${transactionID} já existe na tabela de transações e será atualizada. 
-        A última linha de log que referencia essa transação é ${lastLSN}, esse valor é inserido na tabela de transações.`
-      )
       transaction.lastLSN = lastLSN || null
       transaction.status = status || transaction.status
     } else {
-      console.log(
-        `A transação ${transactionID} não existe na tabela de transações e será adicionada. Uma entrada do tipo START é adicionada ao log.`
-      )
       this.transactionTable.items.push({
         transactionID,
         status: 'Ativa',
@@ -595,9 +553,6 @@ class Logging {
     const dirtyPage = this.dirtyPageTable.items.find((p) => p.pageID === pageID)
 
     if (!dirtyPage) {
-      console.log(
-        `O dado ${pageID} foi alterado em memória. Uma entrada em dirtyPageTable é adicionada para indicar isso.`
-      )
       this.dirtyPageTable.items.push({ pageID, recLSN })
     }
   }
@@ -618,13 +573,7 @@ class Logging {
     if (bufferPage) {
       bufferPage.pageLSN = pageLSN
       bufferPage.value = value || ''
-      console.log(
-        `O dado ${pageID} já existe na memória e será atualizado, com o valor ${value}. O LSN é atualizado para ${pageLSN}`
-      )
     } else {
-      console.log(
-        `O dado ${pageID} não existe na memória e será adicionado, com o valor ${value}. O LSN do dado é ${pageLSN}`
-      )
       this.buffer.pages.push({ pageID, pageLSN, value: value || '' })
     }
   }
@@ -656,12 +605,11 @@ class Logging {
   undo() {
     const entriesToUndo: LogEntry[] = []
     this.redoTransactions.forEach((transaction) => {
-      console.log(`A transação ${transaction.transactionID} foi abortada.`)
       entriesToUndo.push(...(this.getTransactionEntries(transaction.transactionID) as LogEntry[]))
     })
 
     // Ordena entriesToUndo por ordem decrescente de LSN
-    console.log(`As entradas de log a serem desfeitas são ordenadas por ordem decrescente de LSN.`)
+
     entriesToUndo.sort((a, b) => b.LSN - a.LSN)
 
     // adiciona a log.entries um registro CLR para cada entrada de log a ser desfeita
@@ -677,11 +625,6 @@ class Logging {
 
   undoEntry(entry: LogEntry) {
     // Adiciona um registro CLR para a entrada de log a ser desfeita
-    console.log(
-      `Uma entrada do tipo CLR (Compensation Log Record) é adicionada ao log para desfazer a operação
-      de escrita da transação ${entry.transactionID} no dado ${entry.pageID}. Essa operação reverte o valor
-      de ${entry.value} para ${entry.prevValue}.`
-    )
     this.log.entries.push({
       active: true,
       LSN: this.log.entries.length,
@@ -694,7 +637,6 @@ class Logging {
     // find the page in the disk, update the value and pageLSN to the prevValue and prevLSN
     this.disk.pages.forEach((page) => {
       if (page.pageID === entry.pageID) {
-        console.log(`O dado ${entry.pageID} no disco é atualizado para o valor ${entry.prevValue}`)
         page.value = entry.prevValue || ''
         page.pageLSN = entry.prevLSN || null
       }
@@ -745,8 +687,6 @@ class Logging {
           (transaction) => transaction.transactionID === logEntry.transactionID
         )
         if (transaction?.status === 'Ativa' && Math.random() > 0.5) {
-          console.log(`O dado ${page.pageID} foi alterado em memória e será persistido no disco.`)
-
           this.log.entries.forEach((entry) => {
             entry.persisted = true
           })
@@ -782,11 +722,6 @@ class Logging {
   }
 
   simulateCrash() {
-    console.log(`
-    Uma falha aconteceu. Seja por falha de energia ou outro motivo.
-    Isso significa que os dados da tabela de transações e da tabela de dados alterados em memória foram perdidos.
-    Além disso, todas as entradas do log que não foram persistidas também foram perdidas.
-    `)
     //this.transactionTable.items = []
     this.operations.items = []
     this.buffer.pages = []
@@ -797,13 +732,7 @@ class Logging {
 
   loadCheckpoint() {
     // Recupera checkpoint
-    console.log(`
-    Ao recuperar de uma falha, o checkpoint é carregado.
-    Os dados da tabela de transações e da tabela de dados alterados em memória são recuperados.
-    Além disso o log é avaliado e as transações ativas (que contém um start) e 
-    não confirmadas (ou seja, sem o end correspondente) são identificadas.
-    `)
-    //this.transactionTable.items = this.getPendingTransactions()
+
     this.dirtyPageTable = this.checkpoint.dirtyPageTable || { items: [] }
   }
 
@@ -819,17 +748,13 @@ class Logging {
       type: '',
       text: ``
     }
-    console.clear()
+
     // Carrega checkpoint
     this.loadCheckpoint()
     // Identifica transações ativas no momento da falha e aquelas que não foram confirmadas
     this.redoTransactions = this.getPendingTransactions()
     // Desfaz alterações das redoTransactions, o seguinte código é executado interativamente no frontend
     this.undo()
-    console.log(
-      `Por fim, quando nenhuma das operações de escrita das transações abortadas precisa ser desfeita,
-       a recuperação é finalizada.`
-    )
   }
 
   isEndOperation(operation: OperationTypes): operation is EndOperation {
