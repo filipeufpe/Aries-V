@@ -148,7 +148,8 @@ class Logging {
         { pageID: 'B', pageLSN: null, value: '20' },
         { pageID: 'C', pageLSN: null, value: '30' },
         { pageID: 'D', pageLSN: null, value: '40' },
-        { pageID: 'E', pageLSN: null, value: '50' }
+        { pageID: 'E', pageLSN: null, value: '50' },
+        { pageID: 'F', pageLSN: null, value: '60' }
       ]
     }
     this.log = { entries: [] }
@@ -156,13 +157,7 @@ class Logging {
     this.transactionTable = { items: [] }
     this.dirtyPageTable = { items: [] }
     this.operations = {
-      items: [
-        { orderID: 1, operation: { type: 'Read', pageID: 'A', transactionID: 1 } },
-        { orderID: 2, operation: { type: 'Write', pageID: 'A', transactionID: 1, value: '100' } },
-        { orderID: 3, operation: { type: 'Checkpoint' } },
-        { orderID: 4, operation: { type: 'End', transactionID: 1 } },
-        { orderID: 5, operation: { type: 'Checkpoint' } }
-      ]
+      items: []
     }
     this.redoTransactions = []
     this.checkpoint = {
@@ -180,7 +175,7 @@ class Logging {
   newLogEntry(operation: OperationTypes) {
     switch (operation.type) {
       case 'Write':
-        this.simulateCacheManagement()
+        //this.simulateCacheManagement()
         this.write(operation)
         break
       case 'Flush':
@@ -193,7 +188,7 @@ class Logging {
         this.setCheckpoint()
         break
       case 'Read':
-        this.simulateCacheManagement()
+        //this.simulateCacheManagement()
         this.read(operation)
         break
       case 'End':
@@ -209,6 +204,11 @@ class Logging {
   }
 
   write(operation: WriteOperation) {
+    this.message = {
+      enabled: true,
+      type: 'Info',
+      text: `Write Ahead Log: Log persistido em Disco com sucesso!`
+    }
     const pageLSN =
       this.log.entries
         .filter((entry) => entry.pageID === operation.pageID && entry.type === 'write_item')
@@ -223,10 +223,12 @@ class Logging {
 
     this.log.entries.forEach((entry) => {
       entry.active = false
+      entry.persisted = true
     })
     if (this.log.entries.filter((e) => e.transactionID === operation.transactionID).length === 0) {
       this.log.entries.push({
         active: true,
+        persisted: true,
         LSN: this.log.entries.length,
         transactionID: operation.transactionID,
         type: 'Start',
@@ -236,6 +238,7 @@ class Logging {
 
     this.log.entries.push({
       active: true,
+      persisted: true,
       LSN: this.log.entries.length,
       prevLSN: pageLSN,
       transactionID: operation.transactionID,
@@ -244,6 +247,28 @@ class Logging {
       value: operation.value,
       prevValue: prevValue
     })
+    this.addOperationAtPosition(
+      {
+        orderID: this.currentOperationIdx + 1,
+        hidden: true,
+        operation: {
+          type: 'Flush',
+          pageID: operation.pageID,
+          transactionID: operation.transactionID
+        }
+      },
+      this.currentOperationIdx + 1
+    )
+
+    // this.operations.items.push({
+    //   hidden: true,
+    //   orderID: this.operations.items.length + 1,
+    //   operation: {
+    //     type: 'Flush',
+    //     pageID: operation.pageID,
+    //     transactionID: operation.transactionID
+    //   }
+    // })
 
     this.updateTransactionTable(operation.transactionID)
     this.updateBuffer(operation.pageID)
@@ -316,7 +341,7 @@ class Logging {
   }
 
   end(operation: EndOperation) {
-    this.simulateCacheManagement()
+    //this.simulateCacheManagement()
     this.log.entries.forEach((entry) => {
       entry.active = false
     })
@@ -340,7 +365,7 @@ class Logging {
 
     this.log.entries.push({
       active: true,
-      LSN: this.log.entries.length,
+      LSN: this.log.entries.length + 1,
       transactionID: operation.transactionID,
       type: 'Abort',
       pageID: ''
@@ -354,13 +379,21 @@ class Logging {
         transaction.status = 'Abortada'
       }
     })
+
+    // find all write_item log entry for this transactionID
+
+    const entriesToUndo = this.getTransactionEntries(operation.transactionID)
+
+    entriesToUndo.forEach((entry) => {
+      this.undoEntry(entry, true)
+    })
   }
 
   flush(operation: FlushOperation) {
     this.message = {
       enabled: true,
       type: 'Info',
-      text: `O Gerenciador de Cache foi acionado: Dado ${operation.pageID} gravado em partição de disco.`
+      text: `Dado ${operation.pageID} gravado em partição de disco.`
     }
     // const correspondentLogEntry = this.log.entries.find(
     //   (entry) =>
@@ -434,6 +467,20 @@ class Logging {
       operation.orderID = 1
     } else {
       operation.orderID = this.operations.items[this.operations.items.length - 1].orderID + 1
+    }
+    if (operation.operation.type === 'Commit') {
+      this.addOperationAtPosition(
+        {
+          orderID: this.currentOperationIdx + 1,
+          hidden: false,
+          operation: {
+            type: 'Flush',
+            pageID: '',
+            transactionID: operation.operation.transactionID
+          }
+        },
+        this.currentOperationIdx + 1
+      )
     }
     this.operations.items.push(operation)
 
@@ -623,17 +670,22 @@ class Logging {
     })
   }
 
-  undoEntry(entry: LogEntry) {
+  undoEntry(entry: LogEntry, isHidden?: boolean) {
     // Adiciona um registro CLR para a entrada de log a ser desfeita
-    this.log.entries.push({
-      active: true,
-      LSN: this.log.entries.length,
-      prevLSN: entry.LSN,
-      transactionID: entry.transactionID,
-      type: 'CLR',
-      pageID: entry.pageID,
-      value: entry.prevValue
+    this.log.entries.forEach((e) => {
+      e.persisted = true
     })
+    if (!isHidden) {
+      this.log.entries.push({
+        active: true,
+        LSN: this.log.entries.length,
+        prevLSN: entry.LSN,
+        transactionID: entry.transactionID,
+        type: 'CLR',
+        pageID: entry.pageID,
+        value: entry.prevValue
+      })
+    }
     // find the page in the disk, update the value and pageLSN to the prevValue and prevLSN
     this.disk.pages.forEach((page) => {
       if (page.pageID === entry.pageID) {
@@ -644,8 +696,6 @@ class Logging {
   }
 
   simulateCacheManagement(): void {
-    // TODO: fazer com que somente transações com WRITE persistam o log
-
     const currOp = this.operations.items[this.currentOperationIdx].operation
     if (this.isEndOperation(currOp)) {
       this.operations.items.forEach((op) => {
@@ -766,6 +816,10 @@ class Logging {
 
   isWriteOperation(operation: OperationTypes): operation is WriteOperation {
     return operation.type === 'Write'
+  }
+
+  isCheckpointOperation(operation: OperationTypes): operation is CheckpointOperation {
+    return operation.type === 'Checkpoint'
   }
 }
 export default Logging
