@@ -478,13 +478,6 @@ class Logging {
     this.currentOperationIdx++
     this.checkpoint.nextLSN = this.log.entries.length
 
-    this.log.entries.push({
-      active: true,
-      LSN: this.log.entries.length,
-      type: 'Checkpoint',
-      pageID: '',
-      persisted: false
-    })
     const transactionsToCommit = this.findEndOperationsSinceLastCheckpoint()
     transactionsToCommit.forEach((transaction) => {
       if (transaction !== undefined) {
@@ -494,6 +487,15 @@ class Logging {
         })
       }
     })
+
+    this.log.entries.push({
+      active: true,
+      LSN: this.log.entries.length,
+      type: 'Checkpoint',
+      pageID: '',
+      persisted: false
+    })
+
     this.log.entries.forEach((entry) => {
       entry.persisted = true
     })
