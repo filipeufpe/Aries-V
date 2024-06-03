@@ -2,6 +2,76 @@
 
 ## Undo/No-Redo
 
+### Descrição das Operações
+
+<details>
+<summary>
+Write [RM_Write]
+</summary>
+
+1. Adiciona a transação na lista de Transações **ATIVAS**
+2. Se o **DADO** não estiver na **MEMÓRIA**, leia o dado.
+3. Adicione uma entrada no log, contendo a transação, o rótulo do dado, o valor a ser escrito e o valor anterior.
+4. Atualize a Partição (**DISCO**) de X com o novo valor.
+5. Informe o final do processamento ao escalonador.\*
+</details>
+
+<details>
+<summary>
+Read [RM_Read]
+</summary>
+
+1. Se o Dado X não tiver na _cache_ (também chamado de _Buffer_ que é um espaço de memória), lê o dado do Disco (**partição**).
+2. Retorne o valor lido ao escalonador\*.
+</details>
+
+<details>
+<summary>
+Commit [RM_Commit]
+</summary>
+
+1.  Para cada item de dado **x** atualizado pela **transação**, se **x** está no _cache_ (memória), salva o log e o valor de **x** no disco.
+2.  Adiciona uma entrada no log do tipo Commit para essa **transação**.
+3.  Adiciona a **transação** à lista de transações consolidadas.
+4.  Informa o _commit_ da **transação** ao escalonador\*.
+5.  Remova a **transação** da lista de transações ativas.
+</details>
+
+<details>
+<summary>Abort</summary>
+
+1. Para cada item de dado **x** atualizado pela **transação**:  
+   a) Se x não estiver na cache, leia x.  
+   b) Atualize a partição de x com o valor ImAn.
+2. Adicione Ti à lista de transações abortadas.
+3. Informe que T i abortou ao escalonador
+4. Remova Ti da lista de transações ativas.
+</details>
+
+<details>
+<summary>
+Restart [RM_Restart]
+</summary>
+
+1. Todo dado em memória é considerado limpo.
+2. Faça desfeito = { }
+3. Comece com a última entrada do Log e percorra o arquivo no sentido inverso (em direção ao início). Repita os passos abaixo até que:
+
+- (i) desfeito = BD ou
+- (ii) não existam mais entradas no Log para examinar.
+  Para cada [ T , X , BFIM, AFIM ], faça:
+- Se Ti não estiver na lista de transações efetivadas e x não estiver em desfeito:
+- Selecione uma partição da cache para X
+- Atualize a partição de X com o valor BFIM.
+- desfeito = desfeito U { X }
+
+4. Para cada Ti da lista de transações efetivadas:
+
+- Se Ti estiver na lista de transações ativas, remova Ti desta lista
+
+5. Informe o final do processamento de restauração ao escalonador.
+</details>
+
 ### Checkpoint
 
 - Escreve o Log no disco
@@ -16,7 +86,7 @@
 - RM_Write
 - RM_Commit
 - RM_Abort
-- RM_Restart (_Operação de recuperação_)
+- RM_Restart (Operação de recuperação)
 
 #### Listas em Disco
 

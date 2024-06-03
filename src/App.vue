@@ -189,6 +189,7 @@ const abortedAndEndedTransactions = computed((): number[] => {
   aet = aet.filter((i) => i !== 0)
   return aet || []
 })
+
 //instancia do objeto Aries e funções
 const logging = ref(new Logging())
 

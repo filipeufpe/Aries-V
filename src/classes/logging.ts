@@ -311,7 +311,7 @@ class Logging {
       pageID: operation.pageID,
       value: this.disk.pages.find((p) => p.pageID === operation.pageID)?.value || ''
     })
-    this.updateTransactionTable(operation.transactionID)
+    //this.updateTransactionTable(operation.transactionID)
   }
 
   commit(operation: CommitOperation) {
@@ -365,7 +365,7 @@ class Logging {
 
     this.log.entries.push({
       active: true,
-      LSN: this.log.entries.length + 1,
+      LSN: this.log.entries.length,
       transactionID: operation.transactionID,
       type: 'Abort',
       pageID: ''
@@ -384,18 +384,48 @@ class Logging {
 
     const entriesToUndo = this.getTransactionEntries(operation.transactionID)
 
+    //for each item in entriesToUndo, do the following:
+    // 1. search for the page in this.disk.pages as diskPage
+    // 2. search for the page in the this.buffer.pages as bufferPage
+    // 3. if the page is in the buffer, update the bufferPage values with diskPage values
+    // 4. if the page is not in the buffer, add the page to the buffer
+
     entriesToUndo.forEach((entry) => {
-      this.disk.pages.forEach((page) => {
-        if (page.pageID === entry.pageID) {
-          this.buffer.pages.push({
-            pageID: page.pageID,
-            pageLSN: page.pageLSN,
-            value: page.value
-          })
-        }
-      })
+      const diskPage = this.disk.pages.find((p) => p.pageID === entry.pageID)
+      const bufferPage = this.buffer.pages.find((p) => p.pageID === entry.pageID)
+      if (bufferPage) {
+        bufferPage.pageLSN = diskPage?.pageLSN || null
+        bufferPage.value = diskPage?.value || ''
+      } else {
+        this.buffer.pages.push({
+          pageID: diskPage?.pageID || '',
+          pageLSN: diskPage?.pageLSN || null,
+          value: diskPage?.value || ''
+        })
+      }
       this.undoEntry(entry, true)
     })
+
+    // entriesToUndo.forEach((entry) => {
+    //   this.disk.pages.forEach((page) => {
+    //     if (this.buffer.pages.some((p) => p.pageID === page.pageID)) {
+    //       this.buffer.pages.forEach((p) => {
+    //         p.pageID = page.pageID
+    //         p.value = page.value
+    //         p.pageLSN = page.pageLSN
+    //       })
+    //     } else {
+    //       if (page.pageID === entry.pageID) {
+    //         this.buffer.pages.push({
+    //           pageID: page.pageID,
+    //           pageLSN: page.pageLSN,
+    //           value: page.value
+    //         })
+    //       }
+    //     }
+    //   })
+    //   this.undoEntry(entry, true)
+    // })
   }
 
   flush(operation: FlushOperation) {
@@ -434,7 +464,7 @@ class Logging {
           }
         })
       }
-      this.buffer.pages = this.buffer.pages.filter((p) => p.pageID !== operation.pageID)
+      // this.buffer.pages = this.buffer.pages.filter((p) => p.pageID !== operation.pageID)
     }
   }
 
