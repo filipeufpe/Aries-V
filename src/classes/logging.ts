@@ -716,6 +716,7 @@ class Logging {
     })
     if (!isHidden) {
       this.log.entries.push({
+        persisted: true,
         active: true,
         LSN: this.log.entries.length,
         prevLSN: entry.LSN,
