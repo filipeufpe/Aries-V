@@ -311,7 +311,7 @@ class Logging {
       pageID: operation.pageID,
       value: this.disk.pages.find((p) => p.pageID === operation.pageID)?.value || ''
     })
-    //this.updateTransactionTable(operation.transactionID)
+    this.updateTransactionTable(operation.transactionID)
   }
 
   commit(operation: CommitOperation) {
@@ -816,6 +816,7 @@ class Logging {
   simulateCrash() {
     //this.transactionTable.items = []
     this.operations.items = []
+    this.currentOperationIdx = 0
     this.buffer.pages = []
     this.dirtyPageTable.items = []
     console.table(this.log.entries.filter((e) => e.persisted))
@@ -847,6 +848,7 @@ class Logging {
     this.redoTransactions = this.getPendingTransactions()
     // Desfaz alterações das redoTransactions, o seguinte código é executado interativamente no frontend
     this.undo()
+    this.log.entries.forEach((e) => (e.persisted = true))
   }
 
   isEndOperation(operation: OperationTypes): operation is EndOperation {
